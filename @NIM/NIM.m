@@ -991,7 +991,7 @@ classdef NIM
         
     end
     
-    methods (Static, Hidden)
+    methods (Static)
         
         %%
         function stim_params = create_stim_params(dims,varargin)
@@ -1059,8 +1059,9 @@ classdef NIM
             stim_params = struct('dims',dims,'dt',dt,'dx',stim_dx,'up_fac',up_samp_fac,...
                 'tent_spacing',tent_spacing,'boundary_conds',boundary_conds,'split_pts',split_pts);
         end
-        
+    end
         %%
+    methods (Static, Hidden)
         function optim_params = set_optim_params(optimizer,input_params,silent)
             %internal function that checks stim_params struct formatting, and initializes default values for the given optimizer
             

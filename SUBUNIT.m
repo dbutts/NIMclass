@@ -35,7 +35,11 @@ classdef SUBUNIT
             %                 <NLparams>: vector of parameters for the upstream NL
             %                 <Ksign_con>: constraint on filter coefs [-1 = negative; +1 = positive; 0 is no con]
             %             OUTPUTS: subunit: subunit object
-            
+
+            if nargin == 0
+                return %handle the no-input-argument case by returning a null model. This is important when initializing arrays of objects
+            end
+
             if (nargin < 4 || isempty(Xtarg)); Xtarg = 1; end %default Xtarget is 1
             if nargin < 5; NLparams = []; end;
             if (nargin < 6 || isempty(Ksign_con)); Ksign_con = 0; end; %default no constraints on filter coefs
