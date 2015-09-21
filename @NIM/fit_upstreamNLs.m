@@ -195,6 +195,13 @@ for ii = 1:length(par_subs)
     cur_NL_cons = nim.subunits(fit_subs(par_subs(ii))).NLparam_con;
     LB(param_inds{ii}(cur_NL_cons == 1)) = 0; %positivity constraints
     UB(param_inds{ii}(cur_NL_cons == -1)) = 0; %negativity constraints
+    if any(isinf(cur_NL_cons))
+       cur_con_ind = false(1,length(init_params));
+       cur_con_ind(param_inds{ii}(isinf(cur_NL_cons))) = true;
+       Aeq = cat(1,Aeq,cur_con_ind);
+       cur_con_to = init_params(cur_con_ind);
+       beq = cat(1,beq,cur_con_to);
+    end
     if any(cur_NL_cons ~= 0)
         use_con = 1;
     end

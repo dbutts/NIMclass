@@ -12,7 +12,7 @@ classdef SUBUNIT
         Xtarg;       % index of stimulus the subunit filter acts on
         reg_lambdas; % struct of regularization hyperparameters
         Ksign_con;   %scalar defining any constraints on the filter coefs [-1 is negative con; +1 is positive con; 0 is no con]
-        NLparam_con; %vector of constraint indicators for NL parameters (-1 is negative con, + 1 is positive con; 0 is no con]
+        NLparam_con; %vector of constraint indicators for NL parameters (-1 is negative con, + 1 is positive con; 0 is no con; Inf is hold constant]
         TBy;         %tent-basis coefficients
         TBx;         %tent-basis center positions
     end
