@@ -147,14 +147,14 @@ end
 
 % PROCESS CONSTRAINTS
 use_con = 0;
-LB = []; UB = []; Aeq = []; beq = [];% initialize constraint parameters
+[LB,UB] = deal(nan(size(init_params)));
+Aeq = []; beq = [];% initialize constraint parameters
 % Check for spike history coef constraints
 if fit_spk_hist
     % negative constraint on spk history coefs
     if nim.spk_hist.negCon
         spkhist_inds = length(nonpar_subs)*n_tbfs + par_cnt + (1:spkhstlen);
-        LB = -Inf*ones(size(initial_params));
-        UB = Inf*ones(size(initial_params));
+        LB(spkhist_inds) = -Inf;
         UB(spkhist_inds) = 0;
         use_con = 1;
     end
@@ -205,6 +205,12 @@ for ii = 1:length(par_subs)
     if any(cur_NL_cons ~= 0)
         use_con = 1;
     end
+end
+
+if any(~isnan(LB) | ~isnan(UB)) %check if there are any bound constraints
+   LB(isnan(LB)) = -Inf; UB(isnan(UB)) = Inf; %set all unconstrained parameters to +/- Inf
+else
+    LB = []; UB = []; %if no bound constraints, set these to empty
 end
 
 if ~use_con %if there are no constraints
