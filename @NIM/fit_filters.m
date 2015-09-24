@@ -117,7 +117,8 @@ lambda_L1 = lambda_L1'/sum(Robs); % since we are dealing with LL/spk
 %add in filter offsets if needed
 for ii = 1:length(fit_subs)
     if fit_offsets(ii)
-       init_params = [init_params; nim.subunits(fit_subs(ii)).NLoffset];  
+       init_params = [init_params; nim.subunits(fit_subs(ii)).NLoffset]; 
+       lambda_L1 = [lambda_L1; 0];
     end
 end
 Nfit_filt_params = length(init_params); %number of filter coefficients in param vector
