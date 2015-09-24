@@ -13,12 +13,31 @@ function nim = fit_spkNL(nim, Robs, Xstims, varargin)
 %        OUTPUTS:
 %            nim: output model struct
 
-% PROCESS INPUTS
+%set defaults for optional inputs
 gain_funs = []; %default has no gain_funs
 train_inds = nan; %default nan means train on all data
-optim_params = []; %default has no user-specified optimization parameters
 silent = false; %default is show the optimization output
 hold_const = []; %default is fit all spk NL params
+
+option_list = {'gain_funs','silent','hold_const'}; %list of possible option strings
+
+%over-ride any defaults with user-specified values
+OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
+if ~isempty(OP_loc)
+    optim_params = varargin{OP_loc+1};
+    varargin(OP_loc:(OP_loc+1)) = [];
+    OP_fields = lower(fieldnames(optim_params));
+    for ii = 1:length(OP_fields) %loop over fields of optim_params
+        if ismember(OP_fields{ii},option_list); %if the field is a valid input option, over-ride the default
+            eval(sprintf('%s = optim_params.(''%s'');',OP_fields{ii},OP_fields{ii}));
+            optim_params = rmfield(optim_params,OP_fields{ii}); %and remove the field from optim_params, so that the remaining fields are options for the optimizer
+        end
+    end
+else
+    optim_params = [];
+end
+
+%now parse explicit optional input args
 j = 1;
 while j <= length(varargin)
     flag_name = varargin{j}; %if not a flag, it must be train_inds

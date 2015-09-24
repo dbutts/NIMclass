@@ -7,12 +7,12 @@ classdef SUBUNIT
     properties
         filtK;       % filter coefficients, [dx1] array where d is the dimensionality of the target stimulus
         NLtype;      % upstream nonlinearity type (string)
-        NLparams;    % vector of parameters associated with the upstream NL function (for parametric functions)
+        NLparams;    % vector of 'shape' parameters associated with the upstream NL function (for parametric functions)
+        NLoffset;    % scalar offset value added to filter output
         weight;      % subunit weight (typically +/- 1)
         Xtarg;       % index of stimulus the subunit filter acts on
         reg_lambdas; % struct of regularization hyperparameters
         Ksign_con;   %scalar defining any constraints on the filter coefs [-1 is negative con; +1 is positive con; 0 is no con]
-        NLparam_con; %vector of constraint indicators for NL parameters (-1 is negative con, + 1 is positive con; 0 is no con; Inf is hold constant]
         TBy;         %tent-basis coefficients
         TBx;         %tent-basis center positions
     end
@@ -24,15 +24,16 @@ classdef SUBUNIT
     
     %%
     methods
-        function subunit = SUBUNIT(init_filt, weight, NLtype, Xtarg, NLparams,Ksign_con)
+        function subunit = SUBUNIT(init_filt, weight, NLtype, Xtarg, NLoffset, NLparams, Ksign_con)
             %         subunit = SUBUNIT(init_filt, weight, NLtype, <NLparams>, <Ksign_con>)
             %         constructor for SUBUNIT class.
             %             INPUTS:
             %                 init_filt: vector of initial filter coefs
             %                 weight: scalar weighting associated with subunit (typically +/-1)
             %                 NLtype: string specifying the type of upstream NL
-            %                 Xtarg: scalar index specifying which stimulus element this subunit acts on
-            %                 <NLparams>: vector of parameters for the upstream NL
+            %                 <Xtarg>: scalar index specifying which stimulus element this subunit acts on
+            %                 <NLoffset>: scalar term added to filter output
+            %                 <NLparams>: vector of 'shape' parameters for the upstream NL
             %                 <Ksign_con>: constraint on filter coefs [-1 = negative; +1 = positive; 0 is no con]
             %             OUTPUTS: subunit: subunit object
 
@@ -41,11 +42,13 @@ classdef SUBUNIT
             end
 
             if (nargin < 4 || isempty(Xtarg)); Xtarg = 1; end %default Xtarget is 1
-            if nargin < 5; NLparams = []; end;
-            if (nargin < 6 || isempty(Ksign_con)); Ksign_con = 0; end; %default no constraints on filter coefs
+            if (nargin < 5 || isempty(NLoffset)); NLoffset = 0; end; %default NLoffset is 0
+            if nargin < 6; NLparams = []; end;
+            if (nargin < 7 || isempty(Ksign_con)); Ksign_con = 0; end; %default no constraints on filter coefs
             
             assert(length(weight) == 1,'weight must be scalar!');
             assert(ischar(NLtype),'NLtype must be a string');
+            assert(isscalar(NLoffset),'NLoffset must be a scalar');
             subunit.filtK = init_filt;
             subunit.weight = weight;
             if ~ismember(weight,[-1 1])
@@ -60,36 +63,23 @@ classdef SUBUNIT
             %parameter vector is the right size, or initialize to default
             %values
             switch subunit.NLtype
-                case 'lin'
-                    assert(isempty(NLparams),'lin NL type has no parameters');
-                    NLparam_con = []; 
-                case 'quad'
-                    assert(isempty(NLparams),'quad NL type has no parameters');
-                    NLparam_con = [];
-                case 'rectlin'
-                    if isempty(NLparams) %if parameters are not specified
-                        NLparams = [0]; %defines c in f(x) = (x-c) iff x >= c
+                case {'lin','quad','rectlin'} %these NLs dont have any shape parameters
+                    assert(isempty(NLparams),sprintf('%s NL type has no shape parameters',subunit.NLtype));
+                case 'softplus'
+                    if isempty(NLparams)
+                        NLparams = [1]; %defines beta in f(x) = log(1 + exp(beta*x))
                     else
                         assert(length(NLparams) == 1,'invalid NLparams vector');
                     end
-                    NLparam_con = [0]; %c parameter unconstrained
-                case 'softplus'
-                    if isempty(NLparams)
-                        NLparams = [1 0]; %defines [beta, c] in f(x) = log(1 + exp(beta*x + c))
-                    else
-                        assert(length(NLparams) == 2,'invalid NLparams vector');
-                    end
-                    NLparam_con = [0 0]; %might want beta to be non-negative, but in principle it could be
                 case 'rectpow'
                     if isempty(NLparams)
-                        NLparams = [2 0]; %defines [gamma,c] in f(x) = (x-c)^gamma iff x >= c
+                        NLparams = [2]; %defines gamma in f(x) = x^gamma iff x >= 0
                     else
-                        assert(length(NLparams) == 2,'invalid NLparams vector');
+                        assert(length(NLparams) == 1,'invalid NLparams vector');
                     end
-                    NLparam_con = [1 0]; %make gamma non-negative
             end
             subunit.NLparams = NLparams;
-            subunit.NLparam_con = NLparam_con;
+            subunit.NLoffset = NLoffset;
             subunit.reg_lambdas = SUBUNIT.init_reg_lamdas();
             subunit.Ksign_con = Ksign_con;
         end
@@ -100,37 +90,33 @@ classdef SUBUNIT
             %get vector of filter coefs from the subunit
             filtK = subunit.filtK;
         end
-        %%
-        %to ADD: compute subunit output given the stimulus
-        %         function sub_out = get_sub_out(subunit, Xstim)
-        %
-        %         end
+        
         %%
         function sub_out = apply_NL(subunit,gen_signal)
             %apply subunit NL to the input generating signal
             switch subunit.NLtype
-                case 'lin' %f(x) = x
+                case 'lin' %f(x) = x 
                     sub_out = gen_signal;
                     
                 case 'quad' %f(x) = x^2
                     sub_out = gen_signal.^2;
                     
-                case 'rectlin' %f(x;c) = (x-c) iff x >= c; else x = 0
-                    sub_out = (gen_signal - subunit.NLparams(1));
-                    sub_out(gen_signal < subunit.NLparams(1)) = 0;
+                case 'rectlin' %f(x) = x iff x >= 0; else x = 0
+                    sub_out = gen_signal;
+                    sub_out(gen_signal < 0) = 0;
                     
-                case 'rectpow' %f(x;gamma, c) = (x-c)^gamma iff x >= c; else x = 0
-                    sub_out = (gen_signal - subunit.NLparams(2)).^subunit.NLparams(1);
-                    sub_out(gen_signal < subunit.NLparams(2)) = 0;
+                case 'rectpow' %f(x;gamma) = x^gamma iff x >= 0; else x = 0
+                    sub_out = gen_signal.^subunit.NLparams(1);
+                    sub_out(gen_signal < 0) = 0;
                     
-                case 'softplus' %f(x;beta, c) = log(1 + exp(beta*x + c))
+                case 'softplus' %f(x;beta) = log(1 + exp(beta*x))
                     max_g = 50; %to prevent numerical overflow
-                    gint = gen_signal*subunit.NLparams(1) + subunit.NLparams(2); %gen_signal*beta + c
+                    gint = subunit.NLparams(1)*gen_signal; %beta*gen_signal
                     expg = exp(gint);
                     sub_out = log(1 + expg);
                     sub_out(gint > max_g) = gint(gint > max_g);
                     
-                case 'nonpar' %f(x) piecewise constant with knot points TBx and coefficients TBy
+                case 'nonpar' %f(x) piecewise constant with knot points TBx and coefficients TBy [note: no offset]
                     sub_out = zeros(size(gen_signal));
                     %Data where X < TBx(1) are determined entirely by the first tent basis
                     left_edge = find(gen_signal < subunit.TBx(1));
@@ -157,16 +143,16 @@ classdef SUBUNIT
                 case 'quad' %f'(x) = 2x
                     sub_deriv = 2*gen_signal;
                     
-                case 'rectlin' %f'(x) = 1 iff x >= c; else 0
-                    sub_deriv = gen_signal >= subunit.NLparams(1);
+                case 'rectlin' %f'(x) = 1 iff x >= 0; else 0
+                    sub_deriv = gen_signal >= 0;
                     
-                case 'rectpow' %f'(x) = gamma*(x-c)^(gamma-1) iff x >= c; else 0
-                    sub_deriv = subunit.NLparams(1)*(gen_signal - subunit.NLparams(2)).^(subunit.NLparams(1)-1);
-                    sub_deriv(gen_signal < subunit.NLparams(2)) = 0;
+                case 'rectpow' %f'(x) = gamma*x^(gamma-1) iff x > =0; else 0
+                    sub_deriv = subunit.NLparams(1)*gen_signal.^(subunit.NLparams(1)-1);
+                    sub_deriv(gen_signal < 0) = 0;
                     
-                case 'softplus' %f'(x) = beta*exp(beta*x + c)/(1 + exp(beta*x + c))
+                case 'softplus' %f'(x) = beta*exp(beta*x)/(1 + exp(beta*x))
                     max_g = 50; %to prevent numerical overflow
-                    gint = gen_signal*subunit.NLparams(1) + subunit.NLparams(2); %gen_signal*beta + c
+                    gint = subunit.NLparams(1)*gen_signal; %beta*gen_signal
                     sub_deriv = subunit.NLparams(1)*exp(gint)./(1 + exp(gint));
                     sub_deriv(gint > max_g) = 1; %for large gint, derivative goes to 1
                     
@@ -181,24 +167,24 @@ classdef SUBUNIT
         
         %%
         function NLgrad = NL_grad_param(subunit,x)
-            %calculate gradient of upstream NL wrt parameters at input
-            %value x
+            %calculate gradient of upstream NL wrt vector of parameters at input
+            %value x. Note, parameter vector is of the form [NLparams NLoffset]
             NT = length(x);
             NLgrad = zeros(NT,length(subunit.NLparams));
             switch subunit.NLtype
-                case 'rectlin' %f(x;c) = x-c iff x >= c
-                    NLgrad = -(x >= subunit.NLparams(1)); %df/dc
-                case 'rectpow' %f(x;gamma,c) = (x-c)^gamma iff x >= c; else 0
-                    NLgrad(:,1) = (x - subunit.NLparams(2)).^subunit.NLparams(1).* ...
-                        log(x - subunit.NLparams(2)); %df/dgamma
-                    NLgrad(:,2) = -subunit.NLparams(1)*(x - subunit.NLparams(2)).^ ...
+                case 'rectlin' %f(x;c) = x+c iff x >= -c
+                    NLgrad = (x >= -subunit.NLoffset); %df/dc
+                case 'rectpow' %f(x;gamma,c) = (x+c)^gamma iff x >= -c; else 0
+                    NLgrad(:,1) = (x + subunit.NLoffset).^subunit.NLparams(1).* ...
+                        log(x + subunit.NLoffset); %df/dgamma
+                    NLgrad(:,2) = subunit.NLparams(1)*(x + subunit.NLoffset).^ ...
                         (subunit.NLparams(1) - 1); %df/dc
-                    NLgrad(x < subunit.NLparams(2),:) = 0;
+                    NLgrad(x < -subunit.NLoffset,:) = 0;
                 case 'softplus' %f(x) = log(1 + exp(beta*(x + c)):
-                    temp = exp(subunit.NLparams(1)*x + subunit.NLparams(2))./ ...
-                        (1 + exp(subunit.NLparams(1)*x + subunit.NLparams(2)));
-                    NLgrad(:,1) = temp.*x; %df/dbeta
-                    NLgrad(:,2) = temp; %df/dc
+                    temp = exp(subunit.NLparams(1)*(x + subunit.NLoffset))./ ...
+                        (1 + exp(subunit.NLparams(1)*(x + subunit.NLoffset)));
+                    NLgrad(:,1) = temp.*(x + subunit.NLoffset); %df/dbeta
+                    NLgrad(:,2) = temp.*subunit.NLparams(1); %df/dc
             end
         end
     

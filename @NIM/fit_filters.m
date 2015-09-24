@@ -6,23 +6,45 @@ function nim = fit_filters(nim, Robs, Xstims, varargin)
 %            Xstims: cell array of stimuli
 %            <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
 %            optional flags:
-%                ('sub_inds',sub_inds): set of subunits whos filters we want to optimize [default is all]
+%                ('fit_subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
 %                ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
-%                ('optim_params',optim_params): struct of desired optimization parameters
+%                ('fit_offsets',fit_offsets): vector of bools, (or single bool) specifying whether
+%                   to fit the additive offset terms associated with each subunit
+%                ('optim_params',optim_params): struct of desired optimization parameters, can also
+%                   be used to override any of the default values for other optional inputs
 %                ('silent',silent): boolean variable indicating whether to suppress the iterative optimization display
-%                ('hold_spkhist',hold_spkhist): boolean indicating whether to hold the spk NL filter constant
+%                ('fit_spk_hist',fit_spk_hist): boolean indicating whether to hold the spk NL filter constant
 %         OUTPUTS:
 %            new nim object with optimized subunit filters
 %
 Nsubs = length(nim.subunits); %number of subunits
 
-% PROCESS INPUTS
+%set defaults for optional inputs
 fit_subs = 1:Nsubs; %defualt to fitting all subunits (plus -1 for spkHist filter)
 gain_funs = []; %default has no gain_funs
 train_inds = nan; %default nan means train on all data
-optim_params = []; %default has no user-specified optimization parameters
 fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is to fit the spkNL filter if it exists
+fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
 silent = false; %default is to display optimization output
+option_list = {'fit_subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %list of possible option strings
+
+%over-ride any defaults with user-specified values
+OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
+if ~isempty(OP_loc)
+    optim_params = varargin{OP_loc+1};
+    varargin(OP_loc:(OP_loc+1)) = [];
+    OP_fields = lower(fieldnames(optim_params));
+    for ii = 1:length(OP_fields) %loop over fields of optim_params
+        if ismember(OP_fields{ii},option_list); %if the field is a valid input option, over-ride the default
+            eval(sprintf('%s = optim_params.(''%s'');',OP_fields{ii},OP_fields{ii}));
+            optim_params = rmfield(optim_params,OP_fields{ii}); %and remove the field from optim_params, so that the remaining fields are options for the optimizer
+        end
+    end
+else
+    optim_params = [];
+end
+
+%now parse explicit optional input args
 j = 1;
 while j <= length(varargin)
     flag_name = varargin{j};
@@ -31,19 +53,22 @@ while j <= length(varargin)
         j = j + 1; %only one argument here
     else
         switch lower(flag_name)
-            case 'sub_inds'
+            case 'fit_subs'
                 fit_subs = varargin{j+1};
                 assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
             case 'gain_funs'
                 gain_funs = varargin{j+1};
-            case 'optim_params'
-                optim_params = varargin{j+1};
-                assert(isstruct(optim_params),'optim_params must be a struct');
             case 'silent'
                 silent = varargin{j+1};
                 assert(ismember(silent,[0 1]),'silent must be 0 or 1');
-            case 'hold_spkhist'
+            case 'fit_spk_hist'
                 fit_spk_hist = varargin{j+1};
+                assert(ismember(fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
+            case 'fit_offsets'
+                fit_offsets = logical(varargin{j+1});
+                if length(fit_offsets) == 1 %if only one value specified, assume we want to do the same for all subunits
+                    fit_offsets = repmat(fit_offsets,1,Nsubs); 
+                end
                 assert(ismember(fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
             otherwise
                 error('Invalid input flag');
@@ -51,7 +76,12 @@ while j <= length(varargin)
         j = j + 2;
     end
 end
-
+assert(length(fit_subs) == length(fit_offsets),'mismatch between fit_subs and fit_offsets');
+mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
+if any(strcmp(mod_NL_types(fit_offsets),'lin'))
+    fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+    fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
+end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
 nim.check_inputs(Robs,Xstims,train_inds,gain_funs); %make sure input format is correct
 
@@ -74,9 +104,7 @@ if ~isnan(train_inds) %if specifying a subset of indices to train model params
 end
 
 % PARSE INITIAL PARAMETERS
-init_params = [];
-lambda_L1 = zeros(size(init_params));
-sign_con = zeros(size(init_params));
+[init_params,lambda_L1,sign_con] = deal([]);
 for imod = fit_subs
     cur_kern = nim.subunits(imod).filtK;
     if (nim.subunits(imod).Ksign_con ~= 0) %add sign constraints on the filters of this subunit if needed
@@ -86,6 +114,12 @@ for imod = fit_subs
     init_params = [init_params; cur_kern]; % add coefs to initial param vector
 end
 lambda_L1 = lambda_L1'/sum(Robs); % since we are dealing with LL/spk
+%add in filter offsets if needed
+for ii = 1:length(fit_subs)
+    if fit_offsets(ii)
+       init_params = [init_params; nim.subunits(fit_subs(ii)).NLoffset];  
+    end
+end
 Nfit_filt_params = length(init_params); %number of filter coefficients in param vector
 % Add in spike history coefs
 if fit_spk_hist
@@ -100,7 +134,7 @@ if ~fit_spk_hist && spkhstlen > 0 %add in spike history filter output, if we're 
     nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
 end
 
-% IDENTIFY ANY CONSTRAINTS
+% IDENTIFY ANY CONSTRAINTS 
 use_con = 0;
 LB = -Inf*ones(size(init_params));
 UB = Inf*ones(size(init_params));
@@ -122,7 +156,7 @@ end
 % GENERATE REGULARIZATION MATRICES
 Tmats = nim.make_Tikhonov_matrices();
 
-fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs',fit_subs); %put any additional fitting options into this struct
+fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs', fit_subs, 'fit_offsets', fit_offsets); %put any additional fitting options into this struct
 %the function we want to optimize
 opt_fun = @(K) internal_LL_filters(nim,K,Robs,Xstims,Xspkhst,nontarg_g,gain_funs,Tmats,fit_opts);
 
@@ -179,7 +213,12 @@ for ii = 1:Nfit_subs
     nim.subunits(fit_subs(ii)).filtK = cur_kern(:); %assign new filter values
     kOffset = kOffset + filtLen;
 end
-
+for ii = 1:Nfit_subs %parse any fit offset parameters
+    if fit_offsets(ii) 
+       nim.subunits(fit_subs(ii)).NLoffset = params(kOffset + 1);
+       kOffset = kOffset + 1;
+    end
+end
 [LL,~,mod_internals,LL_data] = nim.eval_model(Robs,Xstims,'gain_funs',gain_funs);
 nim = nim.set_subunit_scales(mod_internals.fgint); %update filter scales
 cur_fit_details = struct('fit_type','filter','LL',LL,'filt_pen',LL_data.filt_pen,...
@@ -195,9 +234,10 @@ function [penLL, penLLgrad] = internal_LL_filters(nim,params,Robs,Xstims,Xspkhst
 
 fit_subs = fit_opts.fit_subs;
 Nfit_subs = length(fit_subs); %number of targeted subs
+fit_offsets = fit_opts.fit_offsets; %which filters are we fitting offset parameters for
 
 % USEFUL VALUES
-theta = params(end); % offset
+theta = params(end); % overall model offset
 gint = nan(length(Robs),Nfit_subs); %initialize matrix for storing filter outputs
 filtLen = zeros(Nfit_subs,1); %store the length of each (target) sub's filter
 filtKs = cell(Nfit_subs,1); %store the filter coefs for all (target) subs)
@@ -217,17 +257,22 @@ for ii = 1:Nfit_subs %loop over subunits, get filter coefs and their indices wit
     filtKs{ii} = params(param_inds{ii}); %store filter coefs
     NKtot = NKtot + filtLen(ii); %inc counter
 end
+sub_offsets = [nim.subunits(:).NLoffset];%default offsets to whatever they're set at
+offset_inds = NKtot + find(fit_offsets); %indices within parameter vector of offset terms were fitting
+sub_offsets(fit_offsets) = params(offset_inds); %if were fitting, overwrite these values with current params
+
 for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
     cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
     gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
 end
+gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets 
 
 fgint = gint; %init subunit outputs by filter outputs
 for ii = 1:length(unique_NL_types) %loop over unique subunit NL types and apply NLs to gint in batch
     cur_subs = find(strcmp(mod_NL_types,unique_NL_types{ii})); %set of subs with this NL type
     if ~strcmp(unique_NL_types{ii},'lin') %if its a linear subunit we dont have to do anything
         NLparam_mat = cat(1,nim.subunits(fit_subs(cur_subs)).NLparams); %matrix of upstream NL parameters
-        if isempty(NLparam_mat) || (length(cur_subs) > 1 && max(max(abs(diff(NLparam_mat)))) > 0) 
+        if isempty(NLparam_mat) || (length(cur_subs) > 1 && max(max(abs(diff(NLparam_mat)))) == 0) 
             use_batch_calc = true; %if there are no NLparams, or if all subunits have the same NLparams, use batch calc
         else
             use_batch_calc = false;
@@ -244,16 +289,16 @@ end
 
 % Multiply by weight (and multiplier, if appl) and add to generating function
 if ~isempty(fit_subs)
-if isempty(gain_funs)
-    G = G + fgint*mod_weights;
-else
-    G = G + (fgint.*gain_funs(:,fit_subs))*mod_weights;
-end
+    if isempty(gain_funs)
+        G = G + fgint*mod_weights;
+    else
+        G = G + (fgint.*gain_funs(:,fit_subs))*mod_weights;
+    end
 end
 
 % Add contribution from spike history filter
 if fit_opts.fit_spk_hist
-    G = G + Xspkhst*params(NKtot + (1:nim.spk_hist.spkhstlen));
+    G = G + Xspkhst*params(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen));
 end
 
 pred_rate = nim.apply_spkNL(G);
@@ -267,14 +312,14 @@ penLLgrad(end) = sum(residual);      %Calculate derivatives with respect to cons
 
 % Calculate derivative with respect to spk history filter
 if fit_opts.fit_spk_hist
-    penLLgrad(NKtot+(1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
+    penLLgrad(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
 end
 
 for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt stim filters
     cur_sub_inds = find(Xtarg_set == un_Xtargs(ii)); %set of subunits with this Xtarget
     cur_NL_types = mod_NL_types(cur_sub_inds); %NL types of current subs
     cur_unique_NL_types = unique(cur_NL_types); %set of unique NL types
-    
+    cur_fit_offsets = find(fit_offsets(cur_sub_inds)); %whether were fitting offset term for each of theses subunits
     if length(cur_sub_inds) == 1 && strcmp(cur_unique_NL_types,'lin') %if there's only a single linear subunit, this is a faster calc
         if isempty(gain_funs)
             penLLgrad(param_inds{cur_sub_inds}) = residual'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
@@ -300,6 +345,7 @@ for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt
         else
             penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,sub_inds),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
         end
+        penLLgrad(offset_inds(cur_fit_offsets)) = (fpg(:,cur_fit_offsets)'*residual).*mod_weights(cur_sub_inds(cur_fit_offsets));
     end
 end
 

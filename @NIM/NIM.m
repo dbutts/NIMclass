@@ -65,7 +65,8 @@ classdef NIM
 %                     ('init_filts',init_filts): cell array of initial filter values 
 %                     ('Ksign_cons',Ksign_cons): vector specifying any constraints on the filter
 %                           coefs of each subunit. [-1 for neg; +1 for pos; nan for no cons]
-%                     ('NLparams',NLparams): cell array of parameter values for the corresponding NL functions
+%                     ('NLparams',NLparams): vector of parameter values (or cell array) for the corresponding NL functions
+%                     ('NLoffsets',NLoffsets): vector of initial NL offset terms (or single value)
 %                     (lambda_type,lambda_vals): specify type of regularization, and then a vector
 %                           of values for each subunit (or a scalar which is assumed the same for all units
 %           OUTPUTS:
@@ -90,6 +91,7 @@ classdef NIM
             noise_dist = 'poisson';
             init_filts = cell(nSubs,1);
             Ksign_cons = zeros(nSubs,1); %default no constraints on filters
+            NLoffsets = zeros(nSubs,1); %default NL offsets to 0
             NLparams = cell(nSubs,1);
             
             %parse input flags
@@ -101,6 +103,9 @@ classdef NIM
                     case 'xtargets'
                         Xtargets = varargin{j+1};
                         assert(all(ismember(Xtargets,1:nStims)),'invalid Xtargets specified');
+                        if length(Xtargets) == 1 %if only one is specified, assume all subunits get the same
+                            Xtargets = repmat(Xtargets,1,nSubs);
+                        end
                     case 'spknl'
                         spkNL = lower(varargin{j+1});
                         assert(ischar(spkNL),'spkNL must be a string');
@@ -113,9 +118,22 @@ classdef NIM
                     case 'ksign_cons',
                         Ksign_cons = varargin{j+1};
                         assert(all(ismember(Ksign_cons,[-1 1 0])),'Ksign_cons must have values -1,0, or 1');
+                        if length(Ksign_cons) == 1 %if only one specified, assume all subunits get the same
+                            Ksign_cons = repmat(Ksign_cons,1,nSubs);
+                        end
                     case 'nlparams'
-                        NLparams = varargin{j+1};
-                        assert(iscell(NLparams),'NLparams must be a cell array');
+                        cur_NLparams = varargin{j+1};
+                        if ~iscell(cur_NLparams)
+                            [NLparams{1:nSubs}] = deal(cur_NLparams); %if specified as vector, assume all subunits get the same
+                        else
+                            NLparams = cur_NLparams;
+                        end
+                    case 'nloffsets'
+                        NLoffsets = varargin{j+1};
+                        if length(NLoffsets) == 1
+                           NLoffsets = repmat(NLoffsets,1,nSubs); %assume all filters get same offset if only one specified 
+                        end
+                        assert(length(NLoffsets) == nSubs,'NLoffsets must be vector of lenght nSubs');
                     case nim.allowed_reg_types %if the flag is an allowed regularization type
                         reg_types = cat(1,reg_types,lower(varargin{j}));
                         cur_vals = varargin{j+1};
@@ -171,14 +189,15 @@ classdef NIM
                 else
                     init_filt = init_filts{ii};
                 end
-                nim.subunits = cat(1,nim.subunits,SUBUNIT(init_filt, mod_signs(ii), NLtypes{ii},Xtargets(ii),NLparams{ii},Ksign_cons(ii)));
+                nim.subunits = cat(1,nim.subunits,SUBUNIT(init_filt, mod_signs(ii), NLtypes{ii},Xtargets(ii),...
+                    NLoffsets(ii),NLparams{ii},Ksign_cons(ii)));
             end
             
             %if initial lambdas are specified
             for ii = 1:length(reg_types)
                 assert(all(reg_vals(:,ii)) >= 0,'regularization hyperparameters must be non-negative');
                 for jj = 1:nSubs
-                    nim.subunits(jj).reg_lambdas = setfield(nim.subunits(jj).reg_lambdas,reg_types{ii},reg_vals(jj,ii));
+                    nim.subunits(jj).reg_lambdas.(reg_types{ii}) = reg_vals(jj,ii);
                 end
             end
 
@@ -233,7 +252,7 @@ classdef NIM
             for ii = 1:length(reg_types)
                 assert(all(reg_vals(:,ii)) >= 0,'regularization hyperparameters must be non-negative');
                 for jj = 1:length(sub_inds)
-                    nim.subunits(sub_inds(jj)).reg_lambdas = setfield(nim.subunits(sub_inds(jj)).reg_lambdas,reg_types{ii},reg_vals(jj,ii));
+                    nim.subunits(sub_inds(jj)).reg_lambdas.(reg_types{ii}) = reg_vals(jj,ii);
                 end
             end
         end
@@ -285,7 +304,7 @@ classdef NIM
                 nim.stim_params(Xtarg) = new_stim_params;
             end
             for ii = 1:length(fields_to_set) %assign new field values
-                nim.stim_params(Xtarg) = setfield(nim.stim_params(Xtarg),fields_to_set{ii},field_vals{ii});
+                nim.stim_params(Xtarg).(fields_to_set{ii}) = field_vals{ii};
             end
             while length(nim.stim_params(Xtarg).dims) < 3 %pad dims with 1s for book-keeping
                 nim.stim_params(Xtarg).dims = cat(2,nim.stim_params(Xtarg).dims,1);
@@ -328,7 +347,7 @@ classdef NIM
             end
             for ii = 1:length(reg_types)
                 for jj = 1:length(sub_inds)
-                    lambdas(ii,jj) = getfield(nim.subunits(sub_inds(jj)).reg_lambdas,reg_types{ii});
+                    lambdas(ii,jj) = nim.subunits(sub_inds(jj)).reg_lambdas.(reg_types{ii});
                 end
             end
         end
@@ -498,7 +517,7 @@ classdef NIM
                end
                for jj = 1:length(reg_types) %add in user-specified regularization parameters
                    assert(reg_vals(ii,jj) >= 0,'regularization hyperparameters must be non-negative');
-                   nim.subunits(end).reg_lambdas = setfield(nim.subunits(end).reg_lambdas,reg_types{jj},reg_vals(ii,jj));
+                   nim.subunits(end).reg_lambdas.(reg_types{jj}) = reg_vals(ii,jj);
                end               
             end
         end
@@ -654,15 +673,15 @@ classdef NIM
                     case 'lin'
                         TBy = TBx;
                     case 'rectlin'
-                        TBy = TBx - nim.subunits(imod).NLparams(1);
-                        TBy(TBx < nim.subunits(imod).NLparams(1)) = 0;
+                        TBy = TBx + nim.subunits(imod).NLoffset;
+                        TBy(TBx < -nim.subunits(imod).NLoffset) = 0;
                     case 'rectpow'
-                        TBy = (TBx - nim.subunits(imod).NLparams(2)).^nim.subunits(imod).NLparams(1);
-                        TBy(TBx < nim.subunits(imod).NLparams(2)) = 0;
+                        TBy = (TBx + nim.subunits(imod).NLoffset).^nim.subunits(imod).NLparams(1);
+                        TBy(TBx < -nim.subunits(imod).NLoffset) = 0;
                     case 'quad'
-                        TBy = TBx.^2;
+                        TBy = (TBx + nim.subunits(imod).NLoffset).^2;
                     case 'softplus'
-                        TBy = log(1 + exp(nim.subunits(imod).NLparams(1)*TBx + nim.subunits(imod).NLparams(2)));
+                        TBy = log(1 + exp(nim.subunits(imod).NLparams(1)*(TBx + nim.subunits(imod).NLoffset)));
                     case 'nonpar'
                         fprintf('upstream NL already set as nonparametric\n');
                     otherwise
@@ -790,6 +809,7 @@ classdef NIM
             un_Xtargs = unique(Xtarg_set); %set of Xtargets
             mod_NL_types = {nim.subunits(sub_inds).NLtype}; %NL types for each subunit
             unique_NL_types = unique(mod_NL_types); %unique set of NL types being used
+            filter_offsets = [nim.subunits(sub_inds).NLoffset]; %set of filter offsets
             filtKs = cell(Nsubs,1);
             for ii = 1:Nsubs %loop over subunits, get filter coefs
                 filtKs{ii} = nim.subunits(sub_inds(ii)).get_filtK();
@@ -799,6 +819,8 @@ classdef NIM
                 cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
                 gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
             end
+            gint = bsxfun(@plus,gint,filter_offsets); %add offsets to filter outputs
+            
             fgint = gint; %init subunit outputs by filter outputs
             for ii = 1:Nsubs
                  if ~strcmp(nim.subunits(sub_inds(ii)).NLtype,'lin')
@@ -1066,6 +1088,12 @@ classdef NIM
             %internal function that checks stim_params struct formatting, and initializes default values for the given optimizer
             
             optim_params.maxIter = 500; %maximum number of iterations
+            if ~isempty(input_params) %check if silent is specified in the input params, 
+                if isfield(input_params,'silent')
+                    silent = input_params.('silent'); %if so, over-ride with that value
+                    input_params = rmfield(input_params,'silent'); %remove silent field to allow parsing of other input params
+                end
+            end
             switch optimizer
                 case 'fminunc'
                     optim_params.TolX = 1e-7; % termination tolerance on X
@@ -1117,7 +1145,12 @@ classdef NIM
                     else
                         optim_params.verbose = 2;
                     end                    
-                    
+                case 'fminsearch'
+                    if silent
+                        optim_params.Display = 'off';
+                    else
+                        optim_params.Display = 'iter';
+                    end
                 otherwise
                     error('unsupported optimizer');
                     
@@ -1127,8 +1160,8 @@ classdef NIM
             if ~isempty(input_params)
                 spec_fields = fieldnames(input_params);
                 for ii = 1:length(spec_fields)
-                    value = getfield(input_params,spec_fields{ii});
-                    optim_params = setfield(optim_params,spec_fields{ii},value);
+                    value = input_params.(spec_fields{ii});
+                    optim_params.(spec_fields{ii}) = value;
                 end
             end
         end
