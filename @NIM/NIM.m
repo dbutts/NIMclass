@@ -1033,6 +1033,7 @@ classdef NIM
             %         components).
             %       ('boundary_conds',boundary_conds): vector of boundary conditions on each
             %           dimension (Inf is free, 0 is tied to 0, and -1 is periodi)
+            %       ('split_pts',split_pts): specifies an internal boundary as a 3-element vector: [direction boundary_ind boundary_cond]
             % OUTPUTS:
             %     stim_params: struct of stimulus parameters
             %defaults
@@ -1040,7 +1041,7 @@ classdef NIM
             stim_dx = 1; %default unitless spatial resolution
             up_samp_fac = 1; %default no temporal up-sampling
             tent_spacing = []; %default no tent-bases
-            boundary_conds = [Inf 0 0]; %free boundary on first dim, and tied to 0 in other dims
+            boundary_conds = [0 0 0]; %tied to 0 in all dims
             split_pts = []; %no internal boundaries
             j = 1;
             while j <= length(varargin)

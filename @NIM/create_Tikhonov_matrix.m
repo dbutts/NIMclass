@@ -9,7 +9,7 @@ function Tmat = create_Tikhonov_matrix(stim_params, reg_type)
 %     stim_params: parameter struct associated with the target stimulus.
 %             must contain .dims field specifying the number of stimulus elements along each dimension
 %             <.boundary_conds> specifies boundary conditions: Inf is free boundary, 0 is tied to 0, and -1 is periodic
-%             <.split_pts> specifies an 'internal boundary' over which we dont want to smooth. [direction split_ind]
+%             <.split_pts> specifies an 'internal boundary' over which we dont want to smooth. [direction split_ind split_bnd]
 %       direction: direction of the derivative relative to the stimulus dimensions. e.g. 1 is along the first dim, 2 is along the second, [1 2] is a laplacian
 %
 % OUTPUTS:
@@ -131,7 +131,7 @@ else %for stimuli with 2-spatial dimensions
     end
 end
 
-Tmat = Tmat';
+% Tmat = Tmat';
 
 end
 

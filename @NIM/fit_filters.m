@@ -76,7 +76,9 @@ while j <= length(varargin)
         j = j + 2;
     end
 end
-assert(length(fit_subs) == length(fit_offsets),'mismatch between fit_subs and fit_offsets');
+if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
+    fit_offsets = fit_offsets(fit_subs); %if only fitting subset of filters, set fit_offsets accordingly
+end
 mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
 if any(strcmp(mod_NL_types(fit_offsets),'lin'))
     fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
@@ -258,7 +260,7 @@ for ii = 1:Nfit_subs %loop over subunits, get filter coefs and their indices wit
     filtKs{ii} = params(param_inds{ii}); %store filter coefs
     NKtot = NKtot + filtLen(ii); %inc counter
 end
-sub_offsets = [nim.subunits(:).NLoffset];%default offsets to whatever they're set at
+sub_offsets = [nim.subunits(fit_subs).NLoffset];%default offsets to whatever they're set at
 offset_inds = NKtot + find(fit_offsets); %indices within parameter vector of offset terms were fitting
 sub_offsets(fit_offsets) = params(offset_inds); %if were fitting, overwrite these values with current params
 
@@ -325,7 +327,7 @@ for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt
         if isempty(gain_funs)
             penLLgrad(param_inds{cur_sub_inds}) = residual'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
         else
-            penLLgrad(param_inds{cur_sub_inds}) = (gain_funs.*residual)'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
+            penLLgrad(param_inds{cur_sub_inds}) = (gain_funs(:,cur_sub_inds).*residual)'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
         end
     else %otherwise, compute a matrix of upstream NL derivatives fpg
         fpg = ones(length(residual),length(cur_sub_inds)); %initialize to linear NL derivative (all ones)
@@ -344,7 +346,7 @@ for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt
         if isempty(gain_funs)
             penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg,residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
         else
-            penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,sub_inds),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
+            penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,fit_subs(cur_sub_inds)),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
         end
         penLLgrad(offset_inds(cur_fit_offsets)) = (fpg(:,cur_fit_offsets)'*residual).*mod_weights(cur_sub_inds(cur_fit_offsets));
     end
