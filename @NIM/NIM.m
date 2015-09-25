@@ -39,6 +39,8 @@ classdef NIM
        nim = fit_filters(nim, Robs, Xstims, varargin); %filter model stim-filters 
        nim = fit_upstreamNLs(nim, Robs, Xstims, varargin); %fit model upstream NLs
        nim = fit_spkNL(nim, Robs, Xstims, varargin); %fit parameters of spkNL function
+       nim = fit_NLparams(nim, Robs, Xstims, varargin); %fit parameters of (parametric) upstream NL functions
+       nim = fit_weights(nim, Robs, Xstims, varargin); %fit linear weights on each subunit
        [] = display_model(nim,Robs,Xstims,varargin); %display current model
     end
     methods (Static, Hidden)
@@ -807,8 +809,6 @@ classdef NIM
             Nsubs = length(sub_inds);
             Xtarg_set = [nim.subunits(sub_inds).Xtarg];
             un_Xtargs = unique(Xtarg_set); %set of Xtargets
-            mod_NL_types = {nim.subunits(sub_inds).NLtype}; %NL types for each subunit
-            unique_NL_types = unique(mod_NL_types); %unique set of NL types being used
             filter_offsets = [nim.subunits(sub_inds).NLoffset]; %set of filter offsets
             filtKs = cell(Nsubs,1);
             for ii = 1:Nsubs %loop over subunits, get filter coefs
@@ -886,7 +886,7 @@ classdef NIM
         function rate_deriv = apply_spkNL_deriv(nim,gen_signal,thresholded_inds)
             %apply the derivative of the spkNL to the input gen_signal.
             %Again, gen_signal should have the offset theta already added
-            %in
+            %in. 
             if nargin < 3
                 thresholded_inds = []; %this just specifies the index values where we've had to apply thresholding on the predicted rate to avoid Nan LLs
             end

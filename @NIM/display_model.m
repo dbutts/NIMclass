@@ -7,6 +7,7 @@ function [] = display_model(nim,Robs,Xstims,varargin)
 %                   <Xstims>: Stimulus cell array. Needed if you want to display the distributions of generating signals
 %                   optional_flags:
 %                         ('xtargs',xtargs): indices of stimuli for which we want to plot the filters
+%                         ('sub_inds',sub_inds): set of subunits to plot
 %                         'no_spknl': include this flag to suppress plotting of the spkNL
 %                         'no_spk_hist': include this flag to suppress plotting of spike history filter
 %                         ('gain_funs',gain_funs): if you want the computed generating signals to account for specified gain_funs
@@ -14,7 +15,10 @@ function [] = display_model(nim,Robs,Xstims,varargin)
 if nargin < 2; Robs = []; end;
 if nargin < 3; Xstims = []; end;
 
+Nsubs = length(nim.subunits);
+
 Xtargs = [1:length(nim.stim_params)]; %default plot filters for all stimuli
+sub_inds = 1:Nsubs; %default plot all subunits
 plot_spkNL = true;
 plot_spk_hist = true;
 gain_funs = [];
@@ -34,12 +38,14 @@ while j <= length(varargin)
         case 'no_spk_hist'
             plot_spk_hist = false;
             j = j + 1;
+        case 'sub_inds'
+            sub_inds = varargin{j+1};
+            j = j + 2;
         otherwise
             error('Invalid input flag');
     end
 end
 
-Nsubs = length(nim.subunits);
 spkhstlen = nim.spk_hist.spkhstlen;
 if spkhstlen > 0 && (plot_spk_hist || plot_spkNL)
     Xspkhst = create_spkhist_Xmat(Robs,nim.spk_hist.bin_edges);
@@ -115,7 +121,7 @@ end
 
 % CREATE FIGURE SHOWING INDIVIDUAL SUBUNITS
 for tt = Xtargs(Xtargs > 0) %loop over stimuli
-    cur_subs = find([nim.subunits(:).Xtarg] == tt); %set of subunits acting on this stim
+    cur_subs = sub_inds([nim.subunits(sub_inds).Xtarg] == tt); %set of subunits acting on this stim
     
     if ~isempty(cur_subs)
         fig_handles.stim_filts = figure();
@@ -223,7 +229,11 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 set(h1,'linewidth',1)
                 xlim(ax(1),cur_xrange)
                 xlim(ax(2),cur_xrange);
+                if all(cur_mody == 0)
+                    ylim(ax(1),[-1 1]);
+                else
                 ylim(ax(1),[min(cur_mody) max(cur_mody)]);
+                end
                 set(ax(2),'ytick',[])
                 yl = ylim();
                 line([0 0],yl,'color','k','linestyle','--');
