@@ -264,11 +264,13 @@ sub_offsets = [nim.subunits(fit_subs).NLoffset];%default offsets to whatever the
 offset_inds = NKtot + (1:sum(fit_offsets)); %indices within parameter vector of offset terms were fitting
 sub_offsets(fit_offsets) = params(offset_inds); %if were fitting, overwrite these values with current params
 
-for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
-    cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
-    gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
+if ~isempty(un_Xtargs)
+    for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
+        cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
+        gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
+    end
+    gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets
 end
-gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets 
 
 fgint = gint; %init subunit outputs by filter outputs
 for ii = 1:length(unique_NL_types) %loop over unique subunit NL types and apply NLs to gint in batch
