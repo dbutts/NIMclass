@@ -185,7 +185,6 @@ else
 end
 optim_params = nim.set_optim_params(optimizer,optim_params,silent);
 if ~silent; fprintf('Running optimization using %s\n\n',optimizer); end;
-
 switch optimizer %run optimization
     case 'L1General_PSSas'
         [params] = L1General2_PSSas(opt_fun,init_params,lambda_L1,optim_params);
@@ -272,6 +271,7 @@ if ~isempty(un_Xtargs)
     gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets
 end
 
+use_batch_calc = false;
 fgint = gint; %init subunit outputs by filter outputs
 for ii = 1:length(unique_NL_types) %loop over unique subunit NL types and apply NLs to gint in batch
     cur_subs = find(strcmp(mod_NL_types,unique_NL_types{ii})); %set of subs with this NL type
@@ -279,8 +279,6 @@ for ii = 1:length(unique_NL_types) %loop over unique subunit NL types and apply 
         NLparam_mat = cat(1,nim.subunits(fit_subs(cur_subs)).NLparams); %matrix of upstream NL parameters
         if isempty(NLparam_mat) || (length(cur_subs) > 1 && max(max(abs(diff(NLparam_mat)))) == 0) 
             use_batch_calc = true; %if there are no NLparams, or if all subunits have the same NLparams, use batch calc
-        else
-            use_batch_calc = false;
         end
         if strcmp(unique_NL_types{ii},'nonpar') || ~use_batch_calc %if were using nonpar NLs or parametric NLs with unique parameters, need to apply NLs individually
             for jj = 1:length(cur_subs) %for TB NLs need to apply each subunit's NL individually
@@ -351,7 +349,9 @@ for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt
         else
             penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,fit_subs(cur_sub_inds)),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
         end
-        penLLgrad(offset_inds(cur_offset_inds)) = (fpg(:,subs_with_offsets)'*residual).*mod_weights(cur_sub_inds(subs_with_offsets));
+        if ~isempty(cur_offset_inds)
+            penLLgrad(offset_inds(cur_offset_inds)) = (fpg(:,subs_with_offsets)'*residual).*mod_weights(cur_sub_inds(subs_with_offsets));
+        end
     end
 end
 

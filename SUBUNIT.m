@@ -164,7 +164,7 @@ classdef SUBUNIT
                     end
             end
         end
-        
+                
         %%
         function NLgrad = NL_grad_param(subunit,x)
             %calculate gradient of upstream NL wrt vector of parameters at input
