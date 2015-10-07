@@ -870,8 +870,8 @@ classdef NIM
             
             hessMat = gradMat'*gradMat; %use outer product of gradients to estimate Fisher info matrix (ref: Greene W. Econometric Analysis 7th ed. 2011. Eqn 14-18
             hessMat = hessMat + penHessMat; %add in penalty term
-            assert(min(eig(hessMat)) >= 0,'hessian not positive semi-definite'); %make sure it's positive semi-def
-            inv_hess = inv(hessMat); %invert to get parameter covariance mat
+            if min(eig(hessMat)) < 0; warning('hessian not positive semi-definite'); end; %make sure it's positive semi-def
+            inv_hess = pinv(hessMat); %invert to get parameter covariance mat
             allK_SE = sqrt(diag(inv_hess)); %take sqrt of diagonal component as SE
             
             %parse into cell array
@@ -938,7 +938,7 @@ classdef NIM
                 case 'bernoulli' %LL = R*log(r) + (1-R)*log(1-r)
                     LL = sum(Robs.*log(rPred) + (1-Robs).*log(1-rPred));
                 case 'gaussian' %LL = (r-R)^2 + c
-                    LL = sum((rPred - Robs).^2);
+                    LL = -sum((rPred - Robs).^2);
             end
         end
         
@@ -950,7 +950,7 @@ classdef NIM
                 case 'bernoulli' %LL'[r] = R/r - (1-R)/(1-r)
                     LL_deriv = Robs./rPred - (1-Robs)./(1-rPred);
                 case 'gaussian' %LL'[r] = 2*(r-R)
-                    LL_deriv = 2*(rPred - Robs);
+                    LL_deriv = -2*(rPred - Robs);
             end
         end
         
@@ -1005,7 +1005,9 @@ classdef NIM
                     rate_deriv = nim.spkNL.params(1)*exp(-gen_signal*nim.spkNL.params(1))./...
                         (1 + exp(-gen_signal*nim.spkNL.params(1))).^2; %e^(-x)/(1+e^(-x))^2
             end
-            rate_deriv(thresholded_inds) = 0; %if thresholding the rate to avoid undefined LLs, set deriv to 0 at those points
+            if ismember(nim.noise_dist,{'poisson','bernoulli'}) %cant allow rates == 0 because LL is undefined
+                rate_deriv(thresholded_inds) = 0; %if thresholding the rate to avoid undefined LLs, set deriv to 0 at those points
+            end
         end
         
         function rate_grad = spkNL_param_grad(nim,params,x)
