@@ -3,7 +3,7 @@ class-based implementation of nonlinear input model
 
 Builds on the original "NIMtoolbox" which can be downloaded here: http://neurotheory.umd.edu/nimcode
 
-See also: McFarland JM, Cui Y, Butts DA (2013) Inferring nonlinear neuronal computation based on physiologically plausible inputs. PLoS Computational Biology 9(7): e1003142.
+See also: McFarland JM, Cui Y, Butts DA (2013) Inferring nonlinear neuronal computation based on physiologically plausible inputs. *PLoS Computational Biology* **9**(7): e1003142.
 
 In addition to being object-oriented, there are several additions/changes.
 
