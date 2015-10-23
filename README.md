@@ -15,4 +15,4 @@ In addition to being object-oriented, there are several additions/changes.
 
 and many more minor changes... See the help docs for each function.
 
-The fit_filters function has also had some significant revamping that greatly speeds up estimation of high-dimensional filters, particularly for models with lots of subunits
+The *fit_filters* function has also had some significant revamping that greatly speeds up estimation of high-dimensional filters, particularly for models with lots of subunits
