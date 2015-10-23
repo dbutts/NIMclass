@@ -7,15 +7,11 @@ See also: McFarland JM, Cui Y, Butts DA (2013) Inferring nonlinear neuronal comp
 
 In addition to being object-oriented, there are several additions/changes.
 
-1) The stimulus Xmat now must be a cell array, and each subunit has a field which specifies which element of the stimulus cell array it 'acts on'. 
-
-2) There is now an option to fit an 'offset' term along with the filters.
-
-3) Optional inputs are now provided through 'option-flag/value' pairs
-
-4) The likelihood function is now specified separately from the noise distribution model.
-
-5) There are several new options for the upstream NLs, and spkNL, including 'rectified power-law functions'
+1. The stimulus Xmat now must be a cell array, and each subunit has a field which specifies which element of the stimulus cell array it 'acts on'. 
+2. There is now an option to fit an 'offset' term along with the filters.
+3. Optional inputs are now provided through 'option-flag/value' pairs
+4. The likelihood function is now specified separately from the noise distribution model.
+5. There are several new options for the upstream NLs, and spkNL, including 'rectified power-law functions'
 
 and many more minor changes... See the help docs for each function.
 
