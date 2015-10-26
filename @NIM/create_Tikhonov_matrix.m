@@ -2,7 +2,7 @@ function Tmat = create_Tikhonov_matrix(stim_params, reg_type)
 %
 % Tmat = create_Tikhonov_matrix(stim_params, direction, order)
 %
-% Creates a matrix specifying a form of L2-regularization of the form
+% Creates a matrix specifying a an L2-regularization operator of the form
 % ||T*k||^2. Currently only supports second derivative/Laplacian operations
 %
 % INPUTS:
@@ -126,13 +126,32 @@ else %for stimuli with 2-spatial dimensions
            error('Cant do splits along spatial dims with 2-spatial dim stims yet'); 
         end
         Tmat = kron(Iy,kron(D1x,It)) + kron(D1y, kron(Ix,It));
-    else
-        error('unsupported regularization type');
+    elseif strcmp(reg_type,'d2xt')
+        It = speye(nLags);
+        Ix = speye(nPix(1));
+        Iy = speye(nPix(2));
+        D1t = spdiags([et -2*et et], [-1 0 1], nLags, nLags)';
+        if stim_params.boundary_conds(1) == -1 %if periodic boundary cond
+            D1t(end,1) = 1; D1t(1,end) = 1;
+        end
+        D1x = spdiags([ex -2*ex ex], [-1 0 1], nPix(1), nPix(1))';
+        if stim_params.boundary_conds(2) == -1 %if periodic boundary cond
+            D1x(end,1) = 1; D1x(1,end) = 1;
+        end
+        D1y = spdiags([ey -2*ey ey], [-1 0 1], nPix(2), nPix(2))';
+        if stim_params.boundary_conds(3) == -1 %if periodic boundary cond
+            D1y(end,1) = 1; D1y(1,end) = 1;
+        end
+        if has_split
+            if stim_params.split_pts(1) == 1
+                D1t = split_Tmat(D1t,stim_params.split_pts);
+            elseif ismember(stim_params.split_pts(1),[2 3])
+                error('Cant do splits along spatial dims with 2-spatial dim stims yet'); 
+           end
+        end
+        Tmat = kron(D1y,kron(Ix,It)) + kron(Iy,kron(D1x,It)) + kron(Iy,kron(Ix,D1t));
     end
 end
-
-% Tmat = Tmat';
-
 end
 
 function Tmat = split_Tmat(Tmat,split_pts)
