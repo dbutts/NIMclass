@@ -128,14 +128,13 @@ function [LL, LLgrad] = internal_LL_spkNL(nim,params, Robs, G)
 nim.spkNL.params = params(1:end-1);
 pred_rate = nim.apply_spkNL(G + params(end));
 
-LL = nim.internal_LL(pred_rate,Robs); %compute LL
+[LL,norm_fact] = nim.internal_LL(pred_rate,Robs); %compute LL
 LL_deriv = nim.internal_LL_deriv(pred_rate,Robs);
 spkNL_grad = nim.spkNL_param_grad(params,G);
 LLgrad = sum(bsxfun(@times,spkNL_grad,LL_deriv));
 
 % CONVERT TO NEGATIVE LLS AND NORMALIZE BY NSPKS
-Nspks = sum(Robs);
-LL = -LL/Nspks;
-LLgrad = -LLgrad/Nspks;
+LL = -LL/norm_fact;
+LLgrad = -LLgrad/norm_fact;
 end
 

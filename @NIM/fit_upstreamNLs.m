@@ -284,7 +284,6 @@ function [penLL, penLLgrad] = internal_LL_NLs(nim,params, Robs, XNL, Xspkhst, no
 fit_subs = fit_opts.fit_subs; 
 Nfit_subs = length(fit_subs);
 spkhstlen = nim.spk_hist.spkhstlen;
-Nspks = sum(Robs);
 n_TBs = length(nim.subunits(fit_subs(1)).TBx); 
 
 % ESTIMATE GENERATING FUNCTIONS (OVERALL AND INTERNAL)
@@ -299,7 +298,7 @@ if fit_opts.fit_spk_hist
 end
 
 pred_rate = nim.apply_spkNL(G);
-penLL = nim.internal_LL(pred_rate,Robs); %compute LL
+[penLL,norm_fact] = nim.internal_LL(pred_rate,Robs); %compute LL
 
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G, pred_rate < nim.min_pred_rate);
@@ -324,21 +323,20 @@ if any(lambdas > 0)
     penLLgrad(1:Nfit_subs*n_TBs) = penLLgrad(1:Nfit_subs*n_TBs) - pen_grads;
 end
 % CONVERT TO NEGATIVE LLS AND NORMALIZE BY NSPKS
-penLL = -penLL/Nspks;
-penLLgrad = -penLLgrad/Nspks;
+penLL = -penLL/norm_fact;
+penLLgrad = -penLLgrad/norm_fact;
 end
 %%
 function [LL,grad] = internal_theta_opt(nim,theta,G,Robs)
 %computes LL and its gradient for given additive offset term theta
 G = G + theta;
 pred_rate = nim.apply_spkNL(G);
-LL = nim.internal_LL(pred_rate,Robs);
+[LL,norm_fact] = nim.internal_LL(pred_rate,Robs);
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G,pred_rate < nim.min_pred_rate);
 grad = sum(residual);
-Nspks = sum(Robs);
-LL=-LL/Nspks;
-grad=-grad'/Nspks;
+LL=-LL/norm_fact;
+grad=-grad'/norm_fact;
 end
 
 

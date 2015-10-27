@@ -305,7 +305,7 @@ if fit_opts.fit_spk_hist
 end
 
 pred_rate = nim.apply_spkNL(G);
-penLL = nim.internal_LL(pred_rate,Robs); %compute LL
+[penLL,LL_norm] = nim.internal_LL(pred_rate,Robs); %compute LL and its normalization
 
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G,pred_rate <= nim.min_pred_rate);
@@ -380,10 +380,9 @@ end
 penLL = penLL - sum(net_penalties);
 penLLgrad = penLLgrad - net_pen_grads;
 
-% CONVERT TO NEGATIVE LLS AND NORMALIZE BY NSPKS
-Nspks = sum(Robs);
-penLL = -penLL/Nspks;
-penLLgrad = -penLLgrad/Nspks;
+% CONVERT TO NEGATIVE LLS AND NORMALIZE 
+penLL = -penLL/LL_norm;
+penLLgrad = -penLLgrad/LL_norm;
 
 end
 

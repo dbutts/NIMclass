@@ -763,9 +763,8 @@ classdef NIM
             end
             
             pred_rate = nim.apply_spkNL(G + nim.spkNL.theta); %apply spiking NL
-            LL = nim.internal_LL(pred_rate,Robs); %compute LL
-            Nspks = sum(Robs);
-            LL = LL/Nspks; %normalize by spikes
+            [LL,norm_fact] = nim.internal_LL(pred_rate,Robs); %compute LL
+            LL = LL/norm_fact; %normalize by spikes
             if nargout > 2 %if outputting model internals
                 mod_internals.G = G;
                 mod_internals.fgint = fgint;
@@ -774,11 +773,11 @@ classdef NIM
             if nargout > 3 %if we want more detailed model evaluation info, create an LL_data struct
                 LL_data.LL = LL;
                 [filt_penalties,NL_penalties] = nim.get_reg_pen(); %get regularization penalty for each subunit
-                LL_data.filt_pen = sum(filt_penalties)/Nspks; %normalize by number of spikes
-                LL_data.NL_pen = sum(NL_penalties)/Nspks;
+                LL_data.filt_pen = sum(filt_penalties)/norm_fact; %normalize by number of spikes
+                LL_data.NL_pen = sum(NL_penalties)/norm_fact;
                 avg_rate = mean(Robs);
                 null_prate = ones(NT,1)*avg_rate;
-                nullLL = nim.internal_LL(null_prate,Robs)/Nspks;
+                nullLL = nim.internal_LL(null_prate,Robs)/norm_fact;
                 LL_data.nullLL = nullLL;
             end
         end
@@ -930,15 +929,19 @@ classdef NIM
             G = fgint*[nim.subunits(sub_inds).weight]';
         end
                 
-        function LL = internal_LL(nim,rPred,Robs)
+        function [LL,norm_fact] = internal_LL(nim,rPred,Robs)
             %internal evaluatation method for computing the total LL associated with the predicted rate rPred, given observed data Robs
+            %returns total LL as well as an appropriate normalization factor 
             switch nim.noise_dist
                 case 'poisson' %LL = Rlog(r) - r + C
                     LL = sum(Robs .* log(rPred) -rPred);
+                    norm_fact = sum(Robs); %normalize by total nSpks
                 case 'bernoulli' %LL = R*log(r) + (1-R)*log(1-r)
                     LL = sum(Robs.*log(rPred) + (1-Robs).*log(1-rPred));
+                    norm_fact = sum(Robs); %normalize by total nSpks
                 case 'gaussian' %LL = (r-R)^2 + c
                     LL = -sum((rPred - Robs).^2);
+                    norm_fact = length(Robs); %normalize by number of time points
             end
         end
         
