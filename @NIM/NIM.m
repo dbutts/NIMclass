@@ -22,13 +22,15 @@ classdef NIM
         noise_dist;     %noise distribution class specifying the noise model
         spk_hist;       %class defining the spike-history filter properties
         fit_props;      %struct containing information about model fit evaluations
-        fit_hist;       %struct containing info about history of fitting
+        fit_history;       %struct containing info about history of fitting
     end
     
     properties (Hidden)
         init_props;         %struct containing details about model initialization
         allowed_reg_types = {'nld2','d2xt','d2x','d2t','l2','l1'}; %set of allowed regularization types
-        version = '0.1';    %source code version used to generate the model
+				allowed_spkNLs = {'lin','rectpow','exp','softplus','logistic'}; %set of NL functions currently implemented
+				allowed_noise_dists = {'poisson','bernoulli','gaussian'}; %allowed noise distributions
+        version = '0.2';    %source code version used to generate the model
         create_on = date;    %date model was generated
         min_pred_rate = 1e-50; %minimum predicted rate (for non-negative data) to avoid NAN LL values
         opt_check_FO = 1e-2; %threshold on first-order optimality for fit-checking
@@ -42,6 +44,7 @@ classdef NIM
        nim = fit_NLparams(nim, Robs, Xstims, varargin); %fit parameters of (parametric) upstream NL functions
        nim = fit_weights(nim, Robs, Xstims, varargin); %fit linear weights on each subunit
        [] = display_model(nim,Robs,Xstims,varargin); %display current model
+       [] = display_model_dab(nim,Robs,Xstims,varargin); %display current model
     end
     methods (Static, Hidden)
         Tmat = create_Tikhonov_matrix(stim_params, reg_type); %make regularization matrices
@@ -157,8 +160,7 @@ classdef NIM
             end                
             
             %check and create spk NL function
-            allowed_spkNLs = {'lin','rectpow','exp','softplus','logistic'}; %set of NL functions currently implemented
-            assert(ismember(spkNL,allowed_spkNLs),'not an allowed spk NL type');
+            assert(ismember(spkNL,nim.allowed_spkNLs),'not an allowed spk NL type');
             nim.spkNL.type = spkNL;
             nim.spkNL.theta = 0; %initialize offset term
             %set default parameters for other spkNL parameters depending on
@@ -177,8 +179,7 @@ classdef NIM
             end
             
             %check and create noise distribution
-            allowed_noise_dists = {'poisson','bernoulli','gaussian'}; %allowed noise distributions
-            assert(ismember(noise_dist,allowed_noise_dists),'not an allowed noise distribution');
+            assert(ismember(noise_dist,nim.allowed_noise_dists),'not an allowed noise distribution');
             nim.noise_dist = noise_dist;
             assert(length(Xtargets) == nSubs,'length of mod_signs and Xtargets must be equal');
             
@@ -1119,7 +1120,7 @@ classdef NIM
         
         %%
         function stim_params = create_stim_params(dims,varargin)
-            % stim_params = create_stim_params(stim_dims,<stim_dt>,<up_samp_fac>,<tent_spacing>)
+            % stim_params = create_stim_params(stim_dims,<varargin>)
             %
             % Creates a struct containing stimulus parameters
             % INPUTS:
@@ -1128,11 +1129,11 @@ classdef NIM
             %     optional_flags:
             %       ('stim_dt',stim_dt): time resolution (in ms) of Xmatrix (used only for plotting)
             %       ('stim_dx',stim_dx): spatial resolution (in deg) of Xmatrix (used only for plotting)
-            %       ('up_samp_fac',up_samp_fac): optional up-sampling of the stimulus from its raw form
+            %       ('upsampling',up_samp_fac): optional up-sampling of the stimulus from its raw form
             %       ('tent_spacing',tent_spacing): optional spacing of tent-basis functions when using a tent-basis
             %         representaiton of the stimulus (allows for the stimulus filters to be
-            %         represented at a lower time resolution than other model
-            %         components).
+            %         represented at a lower time resolution than other model components). 
+            %         Default = []: no tent_bases
             %       ('boundary_conds',boundary_conds): vector of boundary conditions on each
             %           dimension (Inf is free, 0 is tied to 0, and -1 is periodi)
             %       ('split_pts',split_pts): specifies an internal boundary as a 3-element vector: [direction boundary_ind boundary_cond]
@@ -1154,7 +1155,7 @@ classdef NIM
                     case 'stim_dx'
                         stim_dx = varargin{j+1};
                         j = j + 2;
-                    case 'up_samp_fac'
+                    case 'upsampling'
                         up_samp_fac = varargin{j+1};
                         j = j + 2;
                     case 'tent_spacing'

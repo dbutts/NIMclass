@@ -117,7 +117,7 @@ nim = nim.set_subunit_scales(mod_internals.fgint); %update filter scales
 cur_fit_details = struct('fit_type','spkNL','LL',LL,'filt_pen',LL_data.filt_pen,...
     'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim);
 nim.fit_props = cur_fit_details;
-nim.fit_hist = cat(1,nim.fit_hist,cur_fit_details);
+nim.fit_history = cat(1,nim.fit_history,cur_fit_details);
 end
 
 %%
