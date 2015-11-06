@@ -21,6 +21,13 @@ hold_const = []; %default is fit all spk NL params
 
 option_list = {'gain_funs','silent','hold_const'}; %list of possible option strings
 
+% To unwrap varargin if passed as a cell-array
+if ~isempty(varargin)
+	if iscell(varargin)
+		varargin = varargin{1};
+	end
+end
+
 %over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)

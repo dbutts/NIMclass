@@ -24,6 +24,13 @@ silent = false; %default is show the optimization output
 fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is fit the spkNL filter if it exists
 option_list = {'fit_subs','gain_funs','silent','fit_spk_hist'}; %list of possible option strings
 
+% To unwrap varargin if passed as a cell-array
+if ~isempty(varargin)
+	if iscell(varargin)
+		varargin = varargin{1};
+	end
+end
+
 %over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)
