@@ -78,7 +78,7 @@ while j <= length(varargin)
                 end
                 assert(ismember(fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
             otherwise
-                error('Invalid input flag');
+                error('Invalid input flag (%s)', flag_name );
         end
         j = j + 2;
     end

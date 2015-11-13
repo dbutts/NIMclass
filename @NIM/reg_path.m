@@ -12,8 +12,8 @@ function nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin )
 % Set default options
 L2s = [];
 lambdaID = 'd2t';
-Nmods = length(nim.subunits);
-targets = 1:Nmods;
+Nsubs = length(nim.subunits);
+targets = 1:Nsubs;
 
 % Parse reg_path-specific input arguments
 if (length(varargin) == 1) && iscell(varargin)
@@ -54,7 +54,7 @@ for tar = targets
 	if isempty(L2s)  
 		%% Do order-of-mag reg first
 		L2s = [0 0.1 1.0 10 100 1000 10000 1e5];
-		fprintf( 'Order-of-magnitude L2 reg path: targets = %d\n', tar )
+		fprintf( 'Order-of-magnitude L2 reg path: target = %d\n', tar )
 
 		LLregs = zeros(length(L2s),1);
 		for nn = 1:length(L2s)
@@ -130,7 +130,7 @@ for tar = targets
 	else
 		
 		%% Use L2 list estalished in function call
-    fprintf( 'L2 reg path (%d): targets = %d', Nreg, targets )
+    fprintf( 'L2 reg path (%d): target = %d', Nreg, tar )
 		LLregs = zeros(Nreg,1);
 
 		regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
@@ -141,7 +141,7 @@ for tar = targets
 			regfit = regfit.fit_filters( Robs, Xs, modvarargin );
 		end
     fitsave{nn} = regfit;
-    [LL,LLdata] = NMMeval_model( regfit, Robs, Xs, [], XVindx );
+		[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
     LLregs(nn) = LL-LLdata.nullLL;
 		fprintf( '  %5.1f: %f\n', L2s(nn), LLregs(nn) )
 	end
@@ -149,5 +149,6 @@ for tar = targets
 	[~,bestnn] = max(LLregs);
 	%L2best = L2s(bestnn);
 	nim = fitsave{bestnn};
+	L2s = [];
 end
 end
