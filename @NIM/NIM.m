@@ -43,6 +43,7 @@ classdef NIM
        nim = fit_spkNL(nim, Robs, Xstims, varargin); %fit parameters of spkNL function
        nim = fit_NLparams(nim, Robs, Xstims, varargin); %fit parameters of (parametric) upstream NL functions
        nim = fit_weights(nim, Robs, Xstims, varargin); %fit linear weights on each subunit
+			 nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );
        [] = display_model(nim,Robs,Xstims,varargin); %display current model
        [] = display_model_dab(nim,Robs,Xstims,varargin); %display current model
     end
@@ -225,6 +226,8 @@ classdef NIM
 %                    scalar or vector of length (Nsubs) giving the associated lambda values
 %            OUTPUTS:
 %                nim: initialized model object
+%
+%						allowed_reg_types = {'nld2','d2xt','d2x','d2t','l2','l1'}
 
             sub_inds = 1:length(nim.subunits); %default is to apply the change to all subunits
             
@@ -438,6 +441,7 @@ classdef NIM
 %         that acts on the same Xtarg (and has same NL type). Otherwise, they are initialized to 0.
 %            INPUTS: 
 %                 NLtypes: string or cell array of strings specifying upstream NL types
+%														allowed: 'lin','quad','rectlin','rectpow','softplus'
 %                 mod_signs: vector of weights associated with each subunit (typically +/- 1)
 %                 optional flags:
 %                    ('xtargs',xtargs): specify vector of of Xtargets for each added subunit
@@ -460,6 +464,10 @@ classdef NIM
             init_filts = cell(nSubs,1);
             NLparams = cell(nSubs,1);
             
+						if (length(varargin) == 1) && iscell(varargin)  % to pass arguments from previous function call
+							varargin = varargin{1};
+						end
+						
             %parse input flags
             j = 1; reg_types = {}; reg_vals = [];
             while j <= length(varargin)
@@ -726,6 +734,14 @@ classdef NIM
             eval_inds = nan; %this default means evaluate on all data
             % PROCESS INPUTS
             gain_funs = []; %default has no gain_funs
+
+						% To unwrap varargin if passed as a cell-array
+						if ~isempty(varargin)
+							if (length(varargin) == 1) && iscell(varargin{1})
+								varargin = varargin{1};
+							end
+						end
+
             j = 1;
             while j <= length(varargin)
                 flag_name = varargin{j};
@@ -777,7 +793,7 @@ classdef NIM
                 LL_data.filt_pen = sum(filt_penalties)/norm_fact; %normalize by number of spikes
                 LL_data.NL_pen = sum(NL_penalties)/norm_fact;
                 avg_rate = mean(Robs);
-                null_prate = ones(NT,1)*avg_rate;
+                null_prate = ones(length(Robs),1)*avg_rate;
                 nullLL = nim.internal_LL(null_prate,Robs)/norm_fact;
                 LL_data.nullLL = nullLL;
             end

@@ -30,7 +30,7 @@ option_list = {'fit_subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %l
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
-	if iscell(varargin)
+	if (length(varargin) == 1) && iscell(varargin{1})
 		varargin = varargin{1};
 	end
 end
@@ -88,7 +88,7 @@ if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
 end
 mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
 if any(strcmp(mod_NL_types(fit_offsets),'lin'))
-    fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+    %fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
     fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
 end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
