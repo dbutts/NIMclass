@@ -30,7 +30,7 @@ option_list = {'fit_subs','gain_funs','silent','fit_spk_hist','lambda_l1'}; %lis
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
-	if iscell(varargin)
+	if iscell(varargin) && iscell(varargin{1})
 		varargin = varargin{1};
 	end
 end
@@ -74,6 +74,8 @@ while j <= length(varargin)
             case 'lambda_l1'
                 lambda_L1 = varargin{j+1};
                 assert(lambda_L1 >= 0,'weight_L1 must be non_negative');
+						case 'fit_offsets'
+								% do nothing
             otherwise
                 error('Invalid input flag');
         end

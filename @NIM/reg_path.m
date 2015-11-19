@@ -31,10 +31,6 @@ while j <= length(varargin)
 			case 'fit_subs'
 				targets = varargin{j+1};
 				assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
-				% Also pass into fit_filters
-				modvarargin{modcounter} = 'fit_subs';
-				modvarargin{modcounter+1} = targets;
-				modcounter = modcounter + 2;
 			case 'l2s'    
 				L2s = varargin{j+1};  
 			case 'silent'
@@ -50,6 +46,11 @@ while j <= length(varargin)
 end
 
 Nreg = length(L2s);
+
+% Add targets to modvarargin
+modvarargin{modcounter} = 'fit_subs';
+modcounter = modcounter + 1;
+
 for tar = targets
 	if isempty(L2s)  
 		%% Do order-of-mag reg first
@@ -60,6 +61,9 @@ for tar = targets
 		for nn = 1:length(L2s)
 			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
 			
+			% Only refit specific target
+			modvarargin{modcounter} = tar;
+			
 			if strcmp( lambdaID, 'nld2' )
 				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
 			else
@@ -69,7 +73,7 @@ for tar = targets
 			fitsaveM{nn} = regfit;
 			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
 			LLregs(nn) = LL-LLdata.nullLL;
-      fprintf( '  %7.1f: %f\n', L2s(nn), LLregs(nn) )
+      fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
 
 			if nn > 2
 				if (LLregs(nn) < LLregs(nn-1)) && (LLregs(nn) < LLregs(nn-2))

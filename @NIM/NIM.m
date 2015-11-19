@@ -47,15 +47,19 @@ classdef NIM
        [] = display_model(nim,Robs,Xstims,varargin); %display current model
        [] = display_model_dab(nim,Robs,Xstims,varargin); %display current model
     end
+    methods (Static)
+        Xmat = create_time_embedding( stim, params ) %make time-embedded stimulus
+				% Defined within NIM.m:
+        %   function stim_params = create_stim_params(dims,varargin)	
+		end
     methods (Static, Hidden)
-        Tmat = create_Tikhonov_matrix(stim_params, reg_type); %make regularization matrices
-        Xmat = create_time_embedding(stim,params) %make time-embedded stimulus
+        Tmat = create_Tikhonov_matrix( stim_params, reg_type ); %make regularization matrices
     end
     %%
     methods
         %% CONSTRUCTOR
-        function nim = NIM(stim_params, NLtypes, mod_signs, varargin)
-%         nim = NIM(stim_params, NLtypes, mod_signs, varargin) 
+        function nim = NIM( stim_params, NLtypes, mod_signs, varargin )
+%         nim = NIM( stim_params, NLtypes, mod_signs, varargin ) 
 %         constructor for class NIM 
 %            INPUTS:
 %               stim_params: struct array defining parameters for each stimulus the model acts on.
