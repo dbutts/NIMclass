@@ -8,12 +8,14 @@ function nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin )
 % is not necessarily robust or tested outside of particular situations.
 %
 % lambda-ID refers to which lamdba to do regularization path: default = 'd2t'
+% vargin of 'silent' = 1 will suppress reg_path output, and 2 will suppress except for reporting maximum
 
 % Set default options
 L2s = [];
 lambdaID = 'd2t';
 Nsubs = length(nim.subunits);
 targets = 1:Nsubs;
+silent = 0;
 
 % Parse reg_path-specific input arguments
 if (length(varargin) == 1) && iscell(varargin)
@@ -21,7 +23,7 @@ if (length(varargin) == 1) && iscell(varargin)
 end
 
 modvarargin{1} = Uindx;
-modvarargin{2} = 'silent';
+modvarargin{2} = 'silent'; % to pass into subfunctions
 modvarargin{3} = 1;
 
 modcounter = 4; j = 1;
@@ -34,7 +36,7 @@ while j <= length(varargin)
 			case 'l2s'    
 				L2s = varargin{j+1};  
 			case 'silent'
-				% Get rid of it
+				silent = varargin{j+1};
 			case 'lambdaid'
 				lambdaID = varargin{j+1}; 
 			otherwise
@@ -55,8 +57,9 @@ for tar = targets
 	if isempty(L2s)  
 		%% Do order-of-mag reg first
 		L2s = [0 0.1 1.0 10 100 1000 10000 1e5];
-		fprintf( 'Order-of-magnitude L2 reg path: target = %d\n', tar )
-
+		if ~silent 
+			fprintf( 'Order-of-magnitude L2 reg path: target = %d\n', tar )
+		end		
 		LLregs = zeros(length(L2s),1);
 		for nn = 1:length(L2s)
 			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
@@ -73,8 +76,10 @@ for tar = targets
 			fitsaveM{nn} = regfit;
 			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
 			LLregs(nn) = LL-LLdata.nullLL;
-      fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
-
+			if ~silent 
+	      fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
+			end
+			
 			if nn > 2
 				if (LLregs(nn) < LLregs(nn-1)) && (LLregs(nn) < LLregs(nn-2))
 					nn = length(L2s)+1;
@@ -108,8 +113,9 @@ for tar = targets
 		fitsave{1} = fitsaveM{loweredge};
 		fitsave{Nreg} = fitsaveM{loweredge+1};
 
-    fprintf( 'Zooming in on L2 reg path (%0.1f-%0.1f):\n', mag, mag*10 )
-
+		if ~silent
+			fprintf( 'Zooming in on L2 reg path (%0.1f-%0.1f):\n', mag, mag*10 )
+		end
 
 		for nn = 2:(Nreg-1)
 			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
@@ -123,7 +129,9 @@ for tar = targets
 
 			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
 			LLregs(nn) = LL-LLdata.nullLL;
-      fprintf( '  %6.1f: %f\n', L2s(nn), LLregs(nn) )
+			if ~silent
+				fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
+			end
 	    if nn > 2
 		    if (LLregs(nn) < LLregs(nn-1)) && (LLregs(nn) < LLregs(nn-2))
 			    nn = length(L2s)+1;
@@ -134,25 +142,34 @@ for tar = targets
 	else
 		
 		%% Use L2 list estalished in function call
-    fprintf( 'L2 reg path (%d): target = %d', Nreg, tar )
+		if ~silent
+			fprintf( 'L2 reg path (%d): target = %d', Nreg, tar )
+		end
 		LLregs = zeros(Nreg,1);
 
-		regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
+		for nn = 1:length(L2s)
+			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
 			
-		if strcmp( lambdaID, 'nld2' )
-			regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
-		else
-			regfit = regfit.fit_filters( Robs, Xs, modvarargin );
+			if strcmp( lambdaID, 'nld2' )
+				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
+			else
+				regfit = regfit.fit_filters( Robs, Xs, modvarargin );
+			end
+			fitsave{nn} = regfit;
+			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
+			LLregs(nn) = LL-LLdata.nullLL;
+			if ~silent
+				fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
+			end
 		end
-    fitsave{nn} = regfit;
-		[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
-    LLregs(nn) = LL-LLdata.nullLL;
-		fprintf( '  %5.1f: %f\n', L2s(nn), LLregs(nn) )
 	end
 	
 	[~,bestnn] = max(LLregs);
 	%L2best = L2s(bestnn);
 	nim = fitsave{bestnn};
+	if silent ~= 1
+		fprintf( '    Subunit %d: Best reg = %0.2f\n', tar, L2s(bestnn) )
+	end
 	L2s = [];
 end
 end
