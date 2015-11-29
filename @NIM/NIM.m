@@ -1,4 +1,3 @@
-
 classdef NIM
     
     % Class implementation of 'nonlinear-input model' (NIM). 
@@ -224,7 +223,7 @@ classdef NIM
 %         of subunits
 %            INPUTS:
 %               optional flags:
-%               ('sub_inds',sub_inds): set of subunits to apply the new reg_params for
+%               ('subs',sub_inds): set of subunits to apply the new reg_params for (default = ALL)
 %               ('lambda_type',lambda_val): first input is a string specifying the type of
 %                    regularization (e.g. 'd2t' for temporal smoothness). This must be followed by a
 %                    scalar or vector of length (Nsubs) giving the associated lambda values
@@ -240,7 +239,7 @@ classdef NIM
             reg_types = {}; reg_vals = [];
             while j <= length(varargin)
                 switch lower(varargin{j})
-                    case 'sub_inds'
+                    case 'subs'
                         sub_inds =  varargin{j+1};
                         assert(all(ismember(sub_inds,1:length(nim.subunits))),'invalid target subunits specified');
                     case nim.allowed_reg_types
@@ -327,7 +326,7 @@ classdef NIM
 %         get regularizatoin lambda values of specified type from a set of nim subunits
 %           INPUTS:
 %             optional flags:
-%                ('sub_inds',sub_inds): vector specifying which subunits to extract lambda values from
+%                ('subs',sub_inds): vector specifying which subunits to extract lambda values from
 %                lambda_type: string specifying the regularization type
 %           OUTPUTS:
 %              lambdas: [K,N] matrix of lambda values, K is the number of specified lambda_types and 
@@ -339,7 +338,7 @@ classdef NIM
             reg_types = {};
             while jj <= length(varargin)
                 switch lower(varargin{jj})
-                    case 'sub_inds'
+                    case 'subs'
                         sub_inds = varargin{jj+1};
                         assert(all(ismember(sub_inds,1:length(nim.subunits))),'invalid target subunits specified');
                         jj = jj + 2;
@@ -419,7 +418,7 @@ classdef NIM
             for ii = 1:length(Tmats) %loop over the derivative regularization matrices
                 cur_subs = find(Xtargs == Tmats(ii).Xtarg); %set of subunits acting on the stimulus given by this Tmat
                 cur_penalties = sum((Tmats(ii).Tmat * cat(2,filtKs{cur_subs})).^2);
-                cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'sub_inds',cur_subs); %current lambdas
+                cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'subs',cur_subs); %current lambdas
                 filt_penalties(cur_subs) = filt_penalties(cur_subs) + cur_penalties.*cur_lambdas; %reg penalties for filters
             end
             l2_lambdas = nim.get_reg_lambdas('l2');
@@ -600,7 +599,7 @@ classdef NIM
 %            INPUTS: 
 %                 Xstims: cell array of stimuli
 %                 optional flags:
-%                    ('sub_inds',sub_inds): Index values of set of subunits to make nonpar (default is all)
+%                    ('subs',sub_inds): Index values of set of subunits to make nonpar (default is all)
 %                    ('lambda_nld2',lambda_nld2): specify strength of smoothness regularization for the tent-basis coefs
 %                    ('NLmon',NLmon): Set to +1 to constrain NL coefs to be monotonic increasing and
 %                       -1 to make monotonic decreasing. 0 means no constraint. Default here is +1 (monotonic increasing)
@@ -621,7 +620,7 @@ classdef NIM
             j = 1;
             while j <= length(varargin)
                 switch lower(varargin{j})
-                    case 'sub_inds'
+                    case 'subs'
                         sub_inds = varargin{j+1};
                         assert(all(ismember(sub_inds,[1:Nsubs])),'invalid target subunits specified');
                     case 'nlmon'
@@ -801,8 +800,21 @@ classdef NIM
                 nullLL = nim.internal_LL(null_prate,Robs)/norm_fact;
                 LL_data.nullLL = nullLL;
             end
-        end
-        
+				end
+				
+				
+        function [LLs,LLnulls] = eval_model_reps( nim, RobsR, Xstims, varargin )
+%         Usage: [LLs,LLnulls] = nim.eval_model_reps( Robs, Xstims, <eval_inds>, <varargin> )
+%         Evaluates the model on the supplied data. In this case RobsR would be a NT x Nreps matrix
+
+					Nreps = size(RobsR,2);
+					LLs = zeros(Nreps,1); 	LLnulls = zeros(Nreps,1);
+					for nn = 1:Nreps
+						[LLs(nn),~,~,LLdata] = eval_model(nim, RobsR(:,nn), Xstims, varargin);
+						LLnulls(nn) = LLdata.nullLL;
+					end
+				end
+								
         function [filt_SE,hessMat] = compute_filter_SEs(nim, Robs, Xstims, varargin)
             %           [filt_SE,hessMat] = compute_filter_SEs(nim,Robs, Xstims, <eval_inds>, varargin)
             %           Computes standard error estimates for the filter coefficients of a set of subunits, 
@@ -813,7 +825,7 @@ classdef NIM
             %                   <eval_inds>: optional vector of indices on which to evaluate the model
             %                   optional flags:
             %                       ('gain_funs',gain_funs): [TxK] matrix specifying gain at each timepoint for each subunit
-            %                       ('sub_inds',sub_inds): index values of subunits to compute filter SEs for
+            %                       ('subs',sub_inds): index values of subunits to compute filter SEs for
             %                OUTPUTS:
             %                   filt_SE: cell array of standard error estimates of the filter coefs
             %                   hessMat: estimate of the second derivative of the log-posterior
@@ -835,7 +847,7 @@ classdef NIM
                         case 'gain_funs'
                             gain_funs = varargin{j+1};
                             j = j + 2;
-                        case 'sub_inds'
+                        case 'subs'
                             sub_inds = varargin{j+1};
                             j = j + 2;
                             assert(all(ismember(sub_inds,1:Nsubs)),'invalid input for sub_inds');
@@ -868,10 +880,10 @@ classdef NIM
                 for jj = 1:length(cur_subs)
                     irange = sum(filt_dims(1:cur_subs(jj)-1)) + (1:filt_dims(cur_subs(jj))); %range of parameter indices corresponding to this subunits filter
                     pen_hess = 2*Tmats.Tmat' * Tmats(ii).Tmat;
-                    penHessMat(irange,irange) = penHessMat(irange,irange) + pen_hess*nim.get_reg_lambdas(Tmats(ii).type,'sub_inds',sub_inds(cur_subs(jj)));
+                    penHessMat(irange,irange) = penHessMat(irange,irange) + pen_hess*nim.get_reg_lambdas(Tmats(ii).type,'subs',sub_inds(cur_subs(jj)));
                 end
             end
-            l2_lambdas = nim.get_reg_lambdas('l2','sub_inds',sub_inds);
+            l2_lambdas = nim.get_reg_lambdas('l2','subs',sub_inds);
             if any(l2_lambdas > 0) %now for straight L2 penalties
                 l2_subs = find(l2_lambdas > 0);
                 for ii = 1:length(l2_subs)
@@ -1080,7 +1092,7 @@ classdef NIM
             for ii = 1:Nstims %for each stimulus
                 cur_subs = find(Xtargs == ii); %get set of subunits acting on this stimuls
                 for jj = 1:length(deriv_reg_types) %check each possible derivative regularization type
-                    cur_lambdas = nim.get_reg_lambdas(deriv_reg_types{jj},'sub_inds',cur_subs);
+                    cur_lambdas = nim.get_reg_lambdas(deriv_reg_types{jj},'subs',cur_subs);
                     if any(cur_lambdas > 0)
                         cur_Tmat = NIM.create_Tikhonov_matrix(nim.stim_params(ii),deriv_reg_types{jj});
                         Tmats(cnt).Tmat = cur_Tmat;

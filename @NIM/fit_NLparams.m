@@ -6,7 +6,7 @@ function nim = fit_NLparams(nim, Robs, Xstims, varargin)
 %            Xstims: cell array of stimuli
 %            <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
 %            optional flags:
-%                ('fit_subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
+%                ('subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
 %                ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
 %                ('optim_params',optim_params): struct of desired optimization parameters
 %                ('silent',silent): boolean variable indicating whether to suppress the iterative optimization display
@@ -22,7 +22,7 @@ gain_funs = []; %default has no gain_funs
 train_inds = nan; %default nan means train on all data
 silent = false; %default is show the optimization output
 fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is fit the spkNL filter if it exists
-option_list = {'fit_subs','gain_funs','silent','fit_spk_hist'}; %list of possible option strings
+option_list = {'subs','gain_funs','silent','fit_spk_hist'}; %list of possible option strings
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
@@ -56,7 +56,7 @@ while j <= length(varargin)
         j = j + 1; %there's just one arg here
     else
         switch lower(flag_name)
-            case 'fit_subs'
+            case 'subs'
                 fit_subs = varargin{j+1};
                 assert(all(ismember(fit_subs,1:Nsubs)),'specified target doesnt exist');
             case 'gain_funs'

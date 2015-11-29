@@ -30,7 +30,7 @@ modcounter = 4; j = 1;
 while j <= length(varargin)
     flag_name = varargin{j};
     switch lower(flag_name)
-			case 'fit_subs'
+			case 'subs'
 				targets = varargin{j+1};
 				assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
 			case 'l2s'    
@@ -50,7 +50,7 @@ end
 Nreg = length(L2s);
 
 % Add targets to modvarargin
-modvarargin{modcounter} = 'fit_subs';
+modvarargin{modcounter} = 'subs';
 modcounter = modcounter + 1;
 
 for tar = targets
@@ -62,7 +62,7 @@ for tar = targets
 		end		
 		LLregs = zeros(length(L2s),1);
 		for nn = 1:length(L2s)
-			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
+			regfit = nim.set_reg_params( 'subs', tar, lambdaID, L2s(nn) );
 			
 			% Only refit specific target
 			modvarargin{modcounter} = tar;
@@ -118,7 +118,7 @@ for tar = targets
 		end
 
 		for nn = 2:(Nreg-1)
-			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
+			regfit = nim.set_reg_params( 'subs', tar, lambdaID, L2s(nn) );
 			
 			if strcmp( lambdaID, 'nld2' )
 				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );

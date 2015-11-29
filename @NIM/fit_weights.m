@@ -26,7 +26,7 @@ fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is to fit the spkNL filter i
 fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
 lambda_L1 = 0; %default is no L1 penalty
 silent = false; %default is to display optimization output
-option_list = {'fit_subs','gain_funs','silent','fit_spk_hist','lambda_l1'}; %list of possible option strings
+option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_l1'}; %list of possible option strings
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
@@ -60,7 +60,7 @@ while j <= length(varargin)
         j = j + 1; %only one argument here
     else
         switch lower(flag_name)
-            case 'fit_subs'
+            case 'subs'
                 fit_subs = varargin{j+1};
                 assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
             case 'gain_funs'

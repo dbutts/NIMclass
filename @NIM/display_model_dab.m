@@ -1,5 +1,5 @@
-function [] = display_model_dab(nim,Robs,Xstims,varargin)
-%         [] = nim.display_model_dab(<Robs>,<Xstims>,varargin)
+function [] = display_model_dab(nim,Xstims,Robs,varargin)
+%         [] = nim.display_model_dab(<Xstims>,<Robs>,varargin)
 %         Creates a display of the elements of a given NIM
 %              INPUTS:
 %                   <Robs>: observed spiking data. Needed if you want to utilize a spike-history
@@ -12,8 +12,8 @@ function [] = display_model_dab(nim,Robs,Xstims,varargin)
 %                         'no_spk_hist': include this flag to suppress plotting of spike history filter
 %                         ('gain_funs',gain_funs): if you want the computed generating signals to account for specified gain_funs
 
-if nargin < 2; Robs = []; end;
-if nargin < 3; Xstims = []; end;
+if nargin < 2; Xstims = []; end;
+if nargin < 3; Robs = []; end;
 
 Nsubs = length(nim.subunits);
 
@@ -91,10 +91,10 @@ if ~isempty(G) && plot_spkNL
     ylim(ax(1),yr);
     
     xlabel('Generating function')
-    ylabel(ax(1),'Predicted firing rate','fontsize',14);
-    ylabel(ax(2),'Probability','fontsize',14)
+    ylabel(ax(1),'Predicted firing rate','fontsize',12);
+    ylabel(ax(2),'Probability','fontsize',12)
     set(ax(2),'ytick',[]);
-    title('Spiking NL','fontsize',14)
+    title('Spiking NL','fontsize',12)
 end
 
 if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
@@ -106,7 +106,7 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     line(xl,[0 0],'color','k','linestyle','--');
     xlabel('Time lag');
     ylabel('Spike history filter')
-    title('Spike history term','fontsize',14)
+    title('Spike history term','fontsize',12)
     
     subplot(2,1,2)
     stairs(nim.spk_hist.bin_edges(1:end-1)*nim.stim_params(1).dt,nim.spk_hist.coefs);
@@ -116,7 +116,7 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     line(xl,[0 0],'color','k','linestyle','--');
     xlabel('Time lag');
     ylabel('Spike history filter')
-    title('Spk Hist Log-axis','fontsize',14)
+    title('Spk Hist Log-axis','fontsize',12)
 end
 
 % CREATE FIGURE SHOWING INDIVIDUAL SUBUNITS
@@ -174,11 +174,11 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                     ylabel('Time lags');
                 end
                 if strcmp(cur_sub.NLtype,'lin')
-                    title('Linear stimulus filter','fontsize',14)
+                    title('Lin','fontsize',12)
                 elseif cur_sub.weight > 0
-                    title('Excitatory stimulus filter','fontsize',14);
+                    title('Exc','fontsize',12);
                 elseif cur_sub.weight < 0
-                    title('Suppressive stimulus filter','fontsize',14);
+                    title('Sup','fontsize',12);
                 end
             else %if 2-spatial dimensional stim
                 maxval = max(abs(cur_sub.filtK));
@@ -226,7 +226,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 [gendist_y,gendist_x] = hist(gint(:,cur_subs(imod)),n_hist_bins);
                 
                 % Sometimes the gendistribution has a lot of zeros (dont want to screw up plot)
-                [a b] = sort(gendist_y);
+                [a,b] = sort(gendist_y);
                 if a(end) > a(end-1)*1.5
                     gendist_y(b(end)) = gendist_y(b(end-1))*1.5;
                 end
@@ -257,7 +257,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 yl = ylim();
                 line([0 0],yl,'color','k','linestyle','--');
                 ylabel(ax(1),'Subunit output','fontsize',12);
-                ylabel(ax(2),'Probability','fontsize',12)
+                %ylabel(ax(2),'Probability','fontsize',12)
             else
                 h = plot(cur_modx,cur_mody,'linewidth',1);
                 if strcmp(cur_sub.NLtype,'nonpar')
@@ -268,8 +268,8 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 ylabel('Subunit output','fontsize',12);
             end
             box off
-            xlabel('Internal generating function')
-            title('Upstream NL','fontsize',14)
+            xlabel('Generating function')
+            %title('NL','fontsize',12)
         end
     end
 end

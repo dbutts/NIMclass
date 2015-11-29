@@ -27,7 +27,7 @@ silent = false; %default is show the optimization output
 fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is fit the spkNL filter if it exists
 rescale_nls = true; %default is to rescale the y-axis of NLs after estimation
 
-option_list = {'fit_subs','gain_funs','silent','rescale_nls','fit_spk_hist'}; %list of possible option strings
+option_list = {'subs','gain_funs','silent','rescale_nls','fit_spk_hist'}; %list of possible option strings
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
@@ -61,7 +61,7 @@ while j <= length(varargin)
         j = j + 1; %there's just one arg here
     else
         switch lower(flag_name)
-            case 'fit_subs'
+            case 'subs'
                 fit_subs = varargin{j+1};
                 assert(all(ismember(fit_subs,poss_targets)),'specified target doesnt have non-parametric NL, or doesnt exist');
             case 'gain_funs'

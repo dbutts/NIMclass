@@ -6,7 +6,7 @@ function nim = fit_filters(nim, Robs, Xstims, varargin)
 %            Xstims: cell array of stimuli
 %            <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
 %            optional flags:
-%                ('fit_subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
+%                ('subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
 %                ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
 %                ('fit_offsets',fit_offsets): vector of bools, (or single bool) specifying whether
 %                   to fit the additive offset terms associated with each subunit
@@ -26,7 +26,7 @@ train_inds = nan; %default nan means train on all data
 fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is to fit the spkNL filter if it exists
 fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
 silent = false; %default is to display optimization output
-option_list = {'fit_subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %list of possible option strings
+option_list = {'subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %list of possible option strings
 
 % To unwrap varargin if passed as a cell-array
 if ~isempty(varargin)
@@ -60,7 +60,7 @@ while j <= length(varargin)
         j = j + 1; %only one argument here
     else
         switch lower(flag_name)
-            case 'fit_subs'
+            case 'subs'
                 fit_subs = varargin{j+1};
                 assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
             case 'gain_funs'
@@ -369,13 +369,13 @@ for ii = 1:length(Tmats) %loop over the derivative regularization matrices
     if ~isempty(cur_subs)
     penalties = sum((Tmats(ii).Tmat * cat(2,filtKs{cur_subs})).^2);
     pen_grads = 2*(Tmats(ii).Tmat' * Tmats(ii).Tmat * cat(2,filtKs{cur_subs}));
-    cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'sub_inds',fit_subs(cur_subs)); %current lambdas
+    cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'subs',fit_subs(cur_subs)); %current lambdas
     net_penalties(cur_subs) = net_penalties(cur_subs) + penalties.*cur_lambdas;
     net_pen_grads(cat(2,param_inds{cur_subs})) = net_pen_grads(cat(2,param_inds{cur_subs})) + reshape(bsxfun(@times,pen_grads,cur_lambdas),[],1);
     end
 end
 
-l2_lambdas = nim.get_reg_lambdas('sub_inds',fit_subs,'l2');
+l2_lambdas = nim.get_reg_lambdas('subs',fit_subs,'l2');
 if any(l2_lambdas > 0)
     net_penalties = net_penalties + l2_lambdas.*cellfun(@(x) sum(x.^2),filtKs)';
     for ii = 1:length(un_Xtargs)
