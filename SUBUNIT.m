@@ -17,6 +17,7 @@ classdef SUBUNIT
         TBx;         %tent-basis center positions
     end
     properties (Hidden)
+				allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; %set of subunit NL functions currently implemented
         TBy_deriv;   %internally stored derivative of tent-basis NL
         TBparams;    %struct of parameters associated with a 'nonparametric' NL
         scale;       %SD of the subunit output derived from most-recent fit
@@ -186,9 +187,33 @@ classdef SUBUNIT
                     NLgrad(:,1) = temp.*(x + subunit.NLoffset); %df/dbeta
                     NLgrad(:,2) = temp.*subunit.NLparams(1); %df/dc
             end
-        end
-    
-    end
+				end
+				
+				%%
+        function rsub = reinitialize_subunit( sub0, weight, NLtype, Xtarg, NLoffset )
+            % Initialize subunit to have reset parameters (including random filter
+  	        
+						rsub = sub0;
+						Npar = length(sub0.filtK);
+						rsub.filtK = randn(Npar,1)/Npar; %initialize fitler coefs with gaussian noise	
+            if (nargin < 5) || isempty(NLoffset)
+							rsub.NLoffset = 0; %default NLoffset is 0
+						else
+							rsub.NLoffset = NLoffset;
+						end
+            if (nargin > 3) && ~isempty(Xtarg)
+							rsub.Xtarg = Xtarg;
+						end
+            if (nargin > 2) && ~isempty(NLtype)
+							rsub.NLtype = NLtype;
+						end
+            if (nargin > 1) && ~isempty(weight)
+							rsub.weight = weight;
+						end
+				end
+				
+		end
+		
     %%
     methods (Hidden)
         

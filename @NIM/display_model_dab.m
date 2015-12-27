@@ -90,7 +90,7 @@ if ~isempty(G) && plot_spkNL
     xlim(ax(2),cur_xrange);
     ylim(ax(1),yr);
     
-    xlabel('Generating function')
+    xlabel('g')
     ylabel(ax(1),'Predicted firing rate','fontsize',12);
     ylabel(ax(2),'Probability','fontsize',12)
     set(ax(2),'ytick',[]);
@@ -104,7 +104,7 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     xlim(nim.spk_hist.bin_edges([1 end])*nim.stim_params(1).dt)
     xl = xlim();
     line(xl,[0 0],'color','k','linestyle','--');
-    xlabel('Time lag');
+    xlabel('Time');
     ylabel('Spike history filter')
     title('Spike history term','fontsize',12)
     
@@ -114,7 +114,7 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     set(gca,'xscale','log')
     xl = xlim();
     line(xl,[0 0],'color','k','linestyle','--');
-    xlabel('Time lag');
+    xlabel('Time');
     ylabel('Spike history filter')
     title('Spk Hist Log-axis','fontsize',12)
 end
@@ -161,7 +161,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                     xr = tax([1 end]);
                     line(xr,[0 0],'color','k','linestyle','--');
                     xlim(xr);
-                    xlabel('Time lag')
+                    xlabel('Time')
                     ylabel('Filter coef');
                 elseif nPix(2) == 1
                     imagesc(1:nPix(1),tax,reshape(cur_sub.filtK,nLags,nPix(1)));
@@ -171,7 +171,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                     colormap(gray);
                     set(gca,'ydir','normal');
                     xlabel('Pixels')
-                    ylabel('Time lags');
+                    ylabel('Time');
                 end
                 if strcmp(cur_sub.NLtype,'lin')
                     title('Lin','fontsize',12)
@@ -256,7 +256,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 set(ax(2),'ytick',[])
                 yl = ylim();
                 line([0 0],yl,'color','k','linestyle','--');
-                ylabel(ax(1),'Subunit output','fontsize',12);
+                ylabel(ax(1),'f_i(g)','fontsize',12);
                 %ylabel(ax(2),'Probability','fontsize',12)
             else
                 h = plot(cur_modx,cur_mody,'linewidth',1);
@@ -265,10 +265,10 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 end
                 xlim(cur_xrange)
                 ylim([min(cur_mody) max(cur_mody)]);
-                ylabel('Subunit output','fontsize',12);
+                ylabel('f_i(g)','fontsize',12);
             end
             box off
-            xlabel('Generating function')
+            xlabel('g')
             %title('NL','fontsize',12)
         end
     end
