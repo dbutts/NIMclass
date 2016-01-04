@@ -714,7 +714,7 @@ classdef NIM
 %           [LL, pred_rate, mod_internals, LL_data] = nim.eval_model(Robs, Xstims, <eval_inds>, varargin)
 %            Evaluates the model on the supplied data
 %                INPUTS:
-%                   Robs: vector of observed data
+%                   Robs: vector of observed data (leave empty [] if not interested in LL)
 %                   Xstims: cell array of stimuli
 %                   <eval_inds>: optional vector of indices on which to evaluate the model
 %                   optional flags:
@@ -760,7 +760,8 @@ classdef NIM
                             error('Invalid input flag');
                     end
                 end
-            end
+						end
+						if isempty(Robs); Robs = zeros(size(Xstims{1},1),1); end %if empty, make null list
             if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
             nim.check_inputs(Robs,Xstims,eval_inds,gain_funs); %make sure input format is correct
             if nim.spk_hist.spkhstlen > 0 % add in spike history term if needed

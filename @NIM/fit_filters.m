@@ -237,9 +237,9 @@ nim.fit_history = cat(1,nim.fit_history,cur_fit_details);
 end
 
 %%
-function [penLL, penLLgrad] = internal_LL_filters(nim,params,Robs,Xstims,Xspkhst,nontarg_g,gain_funs,Tmats,fit_opts)
-%computes the penalized LL and its gradient wrt the filters for the given nim
-%with parameter vector params
+function [penLL, penLLgrad] = internal_LL_filters( nim, params, Robs, Xstims, Xspkhst, nontarg_g, gain_funs, Tmats, fit_opts )
+% computes the penalized LL and its gradient wrt the filters for the given nim
+% with parameter vector params
 
 fit_subs = fit_opts.fit_subs;
 Nfit_subs = length(fit_subs); %number of targeted subs

@@ -87,8 +87,8 @@ if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
 end
 mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
 if any(strcmp(mod_NL_types(fit_offsets),'lin'))
-    fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
-    fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
+	fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+	fit_offsets( strcmp(mod_NL_types(fit_offsets),'lin') ) = false;
 end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
 nim.check_inputs(Robs,Xstims,train_inds,gain_funs); %make sure input format is correct
@@ -98,9 +98,9 @@ non_fit_subs = setdiff([1:Nsubs],fit_subs); %elements of the model held constant
 spkhstlen = nim.spk_hist.spkhstlen; %length of spike history filter
 if fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if spkhstlen > 0 % create spike history Xmat IF NEEDED
-    Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
+	Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
 else
-    Xspkhst = [];
+	Xspkhst = [];
 end
 if ~isnan(train_inds) %if specifying a subset of indices to train model params
     for nn = 1:length(Xstims)
@@ -145,7 +145,7 @@ end
 
 fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs', fit_subs); %put any additional fitting options into this struct
 %the function we want to optimize
-opt_fun = @(K) internal_LL_weights(nim,K,Robs,targ_outs,Xspkhst,nontarg_g,gain_funs,fit_opts);
+opt_fun = @(K) internal_LL_weights( nim, K, Robs, targ_outs, Xspkhst, nontarg_g, gain_funs(:,fit_subs), fit_opts );
 
 %determine which optimizer were going to use
 if max(lambda_L1) > 0
@@ -237,7 +237,8 @@ end
 if isempty(gain_funs)
     penLLgrad(1:Nfit_subs) = residual'* targ_outs;
 else
-    penLLgrad(1:Nfit_subs) = (gain_funs.*residual)'* targ_outs;
+    %penLLgrad(1:Nfit_subs) = (gain_funs.*residual)'* targ_outs;
+		penLLgrad(1:Nfit_subs) = residual' * (targ_outs.*gain_funs);
 end
 
 % CONVERT TO NEGATIVE LLS AND NORMALIZE BY NSPKS
