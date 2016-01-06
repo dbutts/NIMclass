@@ -259,7 +259,7 @@ classdef NIM
                 warning('No regularization values specified, no action taken');
             end
             for ii = 1:length(reg_types)
-                assert(all(reg_vals(:,ii)) >= 0,'regularization hyperparameters must be non-negative');
+                assert(all(reg_vals(:,ii) >= 0),'regularization hyperparameters must be non-negative');
                 for jj = 1:length(sub_inds)
                     nim.subunits(sub_inds(jj)).reg_lambdas.(reg_types{ii}) = reg_vals(jj,ii);
                 end
