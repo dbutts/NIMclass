@@ -145,7 +145,7 @@ end
 
 fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs', fit_subs); %put any additional fitting options into this struct
 %the function we want to optimize
-opt_fun = @(K) internal_LL_weights( nim, K, Robs, targ_outs, Xspkhst, nontarg_g, gain_funs(:,fit_subs), fit_opts );
+opt_fun = @(K) internal_LL_weights( nim, K, Robs, targ_outs, Xspkhst, nontarg_g, gain_funs, fit_opts );
 
 %determine which optimizer were going to use
 if max(lambda_L1) > 0
@@ -238,7 +238,7 @@ if isempty(gain_funs)
     penLLgrad(1:Nfit_subs) = residual'* targ_outs;
 else
     %penLLgrad(1:Nfit_subs) = (gain_funs.*residual)'* targ_outs;
-		penLLgrad(1:Nfit_subs) = residual' * (targ_outs.*gain_funs);
+		penLLgrad(1:Nfit_subs) = residual' * (targ_outs.*gain_funs(:,fit_subs));
 end
 
 % CONVERT TO NEGATIVE LLS AND NORMALIZE BY NSPKS
