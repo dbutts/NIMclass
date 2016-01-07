@@ -50,7 +50,7 @@ if ~isempty(params.tent_spacing)
     %apply to the stimulus
     filtered_stim = zeros(size(stim));
     for i = 1:length(tent_filter)
-        filtered_stim = filtered_stim + shift_mat_zpad(stim,i-tbspace,1)*tent_filter(i);
+        filtered_stim = filtered_stim + NIM.shift_mat_zpad(stim,i-tbspace,1)*tent_filter(i);
     end
     
     stim = filtered_stim; 
@@ -67,6 +67,6 @@ else
     %otherwise loop over lags and manually shift the stim matrix
     Xmat = zeros( NT, prod(params.dims));
     for n = 1:params.dims(1)
-        Xmat(:,n-1+(1:params.dims(1):(Npix*params.dims(1)))) = shift_mat_zpad( stim, lag_spacing*(n-1), 1);
+        Xmat(:,n-1+(1:params.dims(1):(Npix*params.dims(1)))) = NIM.shift_mat_zpad( stim, lag_spacing*(n-1), 1);
     end    
 end

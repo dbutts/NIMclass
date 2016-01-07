@@ -48,6 +48,7 @@ classdef NIM
     end
     methods (Static)
         Xmat = create_time_embedding( stim, params ) %make time-embedded stimulus
+				Xshifted = shift_mat_zpad( X, shift, dim ) %shift matrix along given dimension
 				% Defined within NIM.m:
         %   function stim_params = create_stim_params(dims,varargin)	
 		end
