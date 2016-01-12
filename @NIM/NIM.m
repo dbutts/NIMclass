@@ -295,7 +295,7 @@ classdef NIM
                     case 'xtarg'
                         Xtarg = varargin{j+1};
                     case allowed_flags
-                        fields_to_set = cat(1,fields_to_set,flag_name);
+                        fields_to_set = cat(1,fields_to_set,varargin{j});
                         field_vals = cat(1,field_vals,varargin{j+1});
                     otherwise
                         error('Invalid input flag');

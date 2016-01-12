@@ -81,7 +81,7 @@ classdef SUBUNIT
             end
             subunit.NLparams = NLparams;
             subunit.NLoffset = NLoffset;
-            subunit.reg_lambdas = SUBUNIT.init_reg_lamdas();
+            subunit.reg_lambdas = SUBUNIT.init_reg_lambdas();
             subunit.Ksign_con = Ksign_con;
         end
         
@@ -270,7 +270,7 @@ classdef SUBUNIT
             end
         end
         %%
-        function reg_lambdas = init_reg_lamdas()
+        function reg_lambdas = init_reg_lambdas()
             %creates reg_lambdas struct and sets default values to 0
             reg_lambdas.nld2 = 0; %second derivative of tent basis coefs
             reg_lambdas.d2xt = 0; %spatiotemporal laplacian
