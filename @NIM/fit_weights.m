@@ -28,13 +28,6 @@ lambda_L1 = 0; %default is no L1 penalty
 silent = false; %default is to display optimization output
 option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_l1'}; %list of possible option strings
 
-% To unwrap varargin if passed as a cell-array
-if ~isempty(varargin)
-	if iscell(varargin) && iscell(varargin{1})
-		varargin = varargin{1};
-	end
-end
-
 %over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)

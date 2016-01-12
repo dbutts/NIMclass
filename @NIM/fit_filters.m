@@ -28,13 +28,6 @@ fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
 silent = false; %default is to display optimization output
 option_list = {'subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %list of possible option strings
 
-% To unwrap varargin if passed as a cell-array
-if ~isempty(varargin)
-	if (length(varargin) == 1) && iscell(varargin{1})
-		varargin = varargin{1};
-	end
-end
-
 %over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)

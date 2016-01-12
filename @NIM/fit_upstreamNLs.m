@@ -29,13 +29,6 @@ rescale_nls = true; %default is to rescale the y-axis of NLs after estimation
 
 option_list = {'subs','gain_funs','silent','rescale_nls','fit_spk_hist'}; %list of possible option strings
 
-% To unwrap varargin if passed as a cell-array
-if ~isempty(varargin)
-	if iscell(varargin)
-		varargin = varargin{1};
-	end
-end
-
 %over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)

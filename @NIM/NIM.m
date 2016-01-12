@@ -467,11 +467,7 @@ classdef NIM
             end
             init_filts = cell(nSubs,1);
             NLparams = cell(nSubs,1);
-            
-						if (length(varargin) == 1) && iscell(varargin)  % to pass arguments from previous function call
-							varargin = varargin{1};
-						end
-						
+            						
             %parse input flags
             j = 1; reg_types = {}; reg_vals = [];
             while j <= length(varargin)
@@ -738,13 +734,6 @@ classdef NIM
             eval_inds = nan; %this default means evaluate on all data
             % PROCESS INPUTS
             gain_funs = []; %default has no gain_funs
-
-						% To unwrap varargin if passed as a cell-array
-						if ~isempty(varargin)
-							if (length(varargin) == 1) && iscell(varargin{1})
-								varargin = varargin{1};
-							end
-						end
 
             j = 1;
             while j <= length(varargin)
@@ -1219,8 +1208,9 @@ classdef NIM
             stim_params = struct('dims',dims,'dt',dt,'dx',stim_dx,'up_fac',up_samp_fac,...
                 'tent_spacing',tent_spacing,'boundary_conds',boundary_conds,'split_pts',split_pts);
         end
-    end
-        %%
+		end
+		
+    %%
     methods (Static, Hidden)
         function optim_params = set_optim_params(optimizer,input_params,silent)
             %internal function that checks stim_params struct formatting, and initializes default values for the given optimizer
@@ -1302,8 +1292,67 @@ classdef NIM
                     optim_params.(spec_fields{ii}) = value;
                 end
             end
-        end
+				end
         
+				%% 
+				function [train_inds,parsed_options,modvarargin] = parse_varargin( cellarray2parse, fields_to_remove, default_options  )
+				% Usage: [train_inds parsed_options modvarargin] = parse_varargin( cellarray2parse, <fields_to_remove>, <default_options>  )
+				%
+				% Parses the standard varargin into "train_inds" (if present) and a struct "parsed_options"
+				% with options as seperate fields. Will also return a modified 'modvarargin' to pass to further
+				% functions if 'fields_to_remove' is present. Finally, can pass in a struct of 'default_options' such
+				% that this function will just overwrite the options that are set by varargin
+				%
+				% INPUTS:
+				%		cellarray2parse:
+				%		fields_to_remove:
+				%		default_options:
+				% OUTPUTS:
+				%		train_inds:
+				%		parsed_options:
+				%		modvarargin:
+				
+					if nargin < 3
+						default_options = [];
+					end
+					if nargin < 2
+						fields_to_remove = {};
+					end
+					
+					train_inds = [];
+					parsed_options = default_options;
+					modvarargin = {};
+					
+					if isempty(cellarray2parse)
+						return
+					end
+					
+					% fields_to_set = []; field_vals = [];
+					j = 1;  
+					while j <= length(cellarray2parse)
+						flag_name = cellarray2parse{j};
+						if ~ischar(flag_name) % if not a flag, it must be train_inds
+							train_inds = flag_name;
+							modvarargin{end+1} = train_inds; % implicitly add to varargin
+							j = j + 1; % only one argument here
+						else
+							%fields_to_set = cat(1,fields_to_set,flag_name);
+							%field_vals = cat(1,field_vals,varargin{j+1});
+							parsed_options.(flag_name) = cellarray2parse{j+1};
+							if ~ismember(flag_name,fields_to_remove)
+								modvarargin{end+1} = flag_name;
+								modvarargin{end+1} = cellarray2parse{j+1};
+							end
+							j = j + 2;
+						end
+					end
+					
+					%for j = 1:length(fields_to_set)
+					%	parsed_options.(fields_to_set(j)) = field_vals(j);
+					%end
+				end
+					
+				
         %%
         function percentiles = my_prctile(x,p)
             %
