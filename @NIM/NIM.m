@@ -310,7 +310,7 @@ classdef NIM
                 dim_locs = find(ismember('dims',fields_to_set));
                 assert(~isempty(dim_locs),'need to specify dims to initialize new stimulus');
                 new_stim_params.dims = field_vals{dim_locs};
-                new_stim_params = NIM.check_stim_params(new_stim_params); %initialize default params for new stimulus
+                new_stim_params = NIM.create_stim_params(new_stim_params.dims); %initialize default params for new stimulus
                 nim.stim_params(Xtarg) = new_stim_params;
             end
             for ii = 1:length(fields_to_set) %assign new field values
