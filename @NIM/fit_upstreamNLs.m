@@ -16,7 +16,6 @@ function nim = fit_upstreamNLs(nim, Robs, Xstims, varargin)
 %            nim: output model struct
 
 Nsubs = length(nim.subunits); %number of subunits
-NT = length(Robs); %number of time points
 
 %set defaults for optional inputs
 poss_fitsubs = find(strcmp(nim.get_NLtypes,'nonpar'))'; %can only fit subunits with nonpar NLs
@@ -42,10 +41,10 @@ if ~isempty(OP_loc)
         end
     end
 else
-    optim_params = [];
+	optim_params = [];
 end
 
-%now parse explicit optional input args
+% Now parse explicit optional input args
 j = 1;
 while j <= length(varargin)
     flag_name = varargin{j}; %if not a flag, it must be train_inds
@@ -84,9 +83,9 @@ nim.check_inputs(Robs,Xstims,train_inds,gain_funs); %make sure input format is c
 spkhstlen = nim.spk_hist.spkhstlen; %length of spike history filter
 if fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if fit_spk_hist
-    Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
+	Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
 else
-    Xspkhst = [];
+	Xspkhst = [];
 end
 if ~isnan(train_inds) %if specifying a subset of indices to train model params
     for nn = 1:length(Xstims)
@@ -96,11 +95,12 @@ if ~isnan(train_inds) %if specifying a subset of indices to train model params
     if ~isempty(Xspkhst); Xspkhst = Xspkhst(train_inds,:); end;
     if ~isempty(gain_funs); gain_funs = gain_funs(train_inds,:); end;
 end
+NT = length(Robs); %number of time points
 
 Nfit_subs = length(fit_subs); %number of targeted subunits
 if Nfit_subs == 0
-    warning('No subunits to fit!');
-    return
+	warning('No subunits to fit!');
+	return
 end
 non_fit_subs = setdiff(1:Nsubs,fit_subs); %elements of the model held constant
 
@@ -140,7 +140,7 @@ if fit_spk_hist
 end
 init_params = [init_params; nim.spkNL.theta]; %add constant offset
 
-lambda_nl = nim.get_reg_lambdas('sub_inds',fit_subs,'nld2');
+lambda_nl = nim.get_reg_lambdas('subs',fit_subs,'nld2');
 if any(lambda_nl > 0)
     Tmat = nim.make_NL_Tmat;
 else
