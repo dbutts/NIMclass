@@ -8,18 +8,19 @@ classdef SUBUNIT
         filtK;       % filter coefficients, [dx1] array where d is the dimensionality of the target stimulus
         NLtype;      % upstream nonlinearity type (string)
         NLparams;    % vector of 'shape' parameters associated with the upstream NL function (for parametric functions)
+				NLnonpar;    % struct of settings and values for non-parametric fit (TBx TBy TBparams)
         NLoffset;    % scalar offset value added to filter output
         weight;      % subunit weight (typically +/- 1)
         Xtarg;       % index of stimulus the subunit filter acts on
         reg_lambdas; % struct of regularization hyperparameters
         Ksign_con;   %scalar defining any constraints on the filter coefs [-1 is negative con; +1 is positive con; 0 is no con]
-        TBy;         %tent-basis coefficients
-        TBx;         %tent-basis center positions
+        %TBy;         %tent-basis coefficients
+        %TBx;         %tent-basis center positions
     end
     properties (Hidden)
 				allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; %set of subunit NL functions currently implemented
         TBy_deriv;   %internally stored derivative of tent-basis NL
-        TBparams;    %struct of parameters associated with a 'nonparametric' NL
+        %TBparams;    %struct of parameters associated with a 'nonparametric' NL
         scale;       %SD of the subunit output derived from most-recent fit
   end
     
@@ -57,7 +58,7 @@ classdef SUBUNIT
             end
             subunit.Xtarg = Xtarg;
             subunit.NLtype = lower(NLtype);
-            allowed_NLs = {'lin','quad','rectlin','rectpow','softplus'}; %set of NL functions currently implemented
+            allowed_NLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; %set of NL functions currently implemented
             assert(ismember(subunit.NLtype,allowed_NLs),'invalid NLtype!');
             
             %if using an NLtype that has parameters, check that input
@@ -80,9 +81,13 @@ classdef SUBUNIT
                     end
             end
             subunit.NLparams = NLparams;
+						subunit.NLnonpar.TBx = [];
+						subunit.NLnonpar.TBy = [];
+						subunit.NLnonpar.TBparams = [];
             subunit.NLoffset = NLoffset;
             subunit.reg_lambdas = SUBUNIT.init_reg_lamdas();
             subunit.Ksign_con = Ksign_con;
+						subunit.scale = 1;
         end
         
         %%
@@ -120,15 +125,15 @@ classdef SUBUNIT
                 case 'nonpar' %f(x) piecewise constant with knot points TBx and coefficients TBy [note: no offset]
                     sub_out = zeros(size(gen_signal));
                     %Data where X < TBx(1) are determined entirely by the first tent basis
-                    left_edge = find(gen_signal < subunit.TBx(1));
-                    sub_out(left_edge) = sub_out(left_edge) + subunit.TBy(1);
+                    left_edge = find(gen_signal < subunit.NLnonpar.TBx(1));
+                    sub_out(left_edge) = sub_out(left_edge) + subunit.NLnonpar.TBy(1);
                     %similarly for the right edge
-                    right_edge = find(gen_signal >= subunit.TBx(end));
-                    sub_out(right_edge) = sub_out(right_edge) + subunit.TBy(end);
-                    slopes = diff(subunit.TBy)./diff(subunit.TBx);
-                    for j = 1:length(subunit.TBy)-1
-                        cur_set = find(gen_signal >= subunit.TBx(j) & gen_signal < subunit.TBx(j+1));
-                        sub_out(cur_set) = sub_out(cur_set) + subunit.TBy(j) + slopes(j)*(gen_signal(cur_set) - subunit.TBx(j));
+                    right_edge = find(gen_signal >= subunit.NLnonpar.TBx(end));
+                    sub_out(right_edge) = sub_out(right_edge) + subunit.NLnonpar.TBy(end);
+                    slopes = diff(subunit.NLnonpar.TBy)./diff(subunit.NLnonpar.TBx);
+                    for j = 1:length(subunit.NLnonpar.TBy)-1
+                        cur_set = find(gen_signal >= subunit.NLnonpar.TBx(j) & gen_signal < subunit.NLnonpar.TBx(j+1));
+                        sub_out(cur_set) = sub_out(cur_set) + subunit.NLnonpar.TBy(j) + slopes(j)*(gen_signal(cur_set) - subunit.NLnonpar.TBx(j));
                     end
             end
         end
@@ -158,7 +163,7 @@ classdef SUBUNIT
                     sub_deriv(gint > max_g) = 1; %for large gint, derivative goes to 1
                     
                 case 'nonpar'
-                    ypts = subunit.TBy_deriv; xedges = subunit.TBx;
+                    ypts = subunit.TBy_deriv; xedges = subunit.NLnonpar.TBx;
                     sub_deriv = zeros(length(gen_signal),1);
                     for n = 1:length(xedges)-1
                         sub_deriv((gen_signal >= xedges(n)) & (gen_signal < xedges(n+1))) = ypts(n);
@@ -219,20 +224,24 @@ classdef SUBUNIT
         
         function fprime = get_TB_derivative(subunit)
             %calculate the derivative of the piecewise linear function wrt x
-            fprime = zeros(1,length(subunit.TBx)-1);
+						if ~strcmp(subunit.NLtype,'nonpar')
+							fprime = [];
+							return
+						end
+            fprime = zeros(1,length(subunit.NLnonpar.TBx)-1);
             for n = 1:length(fprime)
-                fprime(n) = (subunit.TBy(n+1)-subunit.TBy(n))/(subunit.TBx(n+1)-subunit.TBx(n));
+                fprime(n) = (subunit.NLnonpar.TBy(n+1)-subunit.NLnonpar.TBy(n))/(subunit.NLnonpar.TBx(n+1)-subunit.NLnonpar.TBx(n));
             end
         end
         %%
         function gout = tb_rep(subunit,gin)
             %project the input signal gin onto the tent-basis functions associated with this subunit
-            n_tbs =length(subunit.TBx); %number of tent-basis functions
+            n_tbs =length(subunit.NLnonpar.TBx); %number of tent-basis functions
             gout = zeros(length(gin),n_tbs);
-            gout(:,1) = SUBUNIT.get_tentbasis_output(gin,subunit.TBx(1),[-Inf subunit.TBx(2)]);
-            gout(:,end) = SUBUNIT.get_tentbasis_output(gin,subunit.TBx(end),[subunit.TBx(end-1) Inf]);
+            gout(:,1) = SUBUNIT.get_tentbasis_output(gin,subunit.NLnonpar.TBx(1),[-Inf subunit.NLnonpar.TBx(2)]);
+            gout(:,end) = SUBUNIT.get_tentbasis_output(gin,subunit.NLnonpar.TBx(end),[subunit.NLnonpar.TBx(end-1) Inf]);
             for n = 2:n_tbs-1
-                gout(:,n) = SUBUNIT.get_tentbasis_output(gin, subunit.TBx(n), [subunit.TBx(n-1) subunit.TBx(n+1)] );
+                gout(:,n) = SUBUNIT.get_tentbasis_output(gin, subunit.NLnonpar.TBx(n), [subunit.NLnonpar.TBx(n-1) subunit.NLnonpar.TBx(n+1)] );
             end
         end
         

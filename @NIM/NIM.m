@@ -432,7 +432,7 @@ classdef NIM
                 Tmat = nim.make_NL_Tmat();
                 nonpar_subs = find(strcmp(nim.get_NLtypes,'nonpar'))';
                 for imod = nonpar_subs %compute the reg penalty on each subunit's NL
-                    NL_penalties(imod) = nl_lambdas(imod)*sum((Tmat*nim.subunits(imod).TBy').^2);
+                    NL_penalties(imod) = nl_lambdas(imod)*sum((Tmat*nim.subunits(imod).NLnonpar.TBy').^2);
                 end
             end
         end
@@ -644,7 +644,7 @@ classdef NIM
             %store NL tent-basis parameters
             tb_params = struct('edge_p',edge_p,'n_bfs',n_bfs,'space_type',space_type);
             for ii = sub_inds %load the TB param struct into each subunit we're making nonpar
-                nim.subunits(ii).TBparams = tb_params;
+                nim.subunits(ii).NLnonpar.TBparams = tb_params;
             end
             
             % Compute internal generating functions
@@ -697,11 +697,12 @@ classdef NIM
                         fprintf('upstream NL already set as nonparametric\n');
                     otherwise
                         error('Unsupported NL type');
-                end
-                nim.subunits(imod).TBy = TBy;
-                nim.subunits(imod).TBx = TBx;
+								end
+								nim.subunits(imod).NLoffset = 0;
+                nim.subunits(imod).NLnonpar.TBy = TBy;
+                nim.subunits(imod).NLnonpar.TBx = TBx;
                 nim.subunits(imod).reg_lambdas.nld2 = lambda_nld2;
-                nim.subunits(imod).TBparams.NLmon = NLmon;
+                nim.subunits(imod).NLnonpar.TBparams.NLmon = NLmon;
                 nim.subunits(imod).TBy_deriv = nim.subunits(imod).get_TB_derivative(); %calculate derivative of Tent-basis coeffics
             end
         end
@@ -1099,7 +1100,7 @@ classdef NIM
             %make Tikhonov matrix for smoothness regularization of the TB NLs
             nonpar_set = find(strcmp(nim.get_NLtypes(),'nonpar'));
             assert(~isempty(nonpar_set),'no nonparametric NLs found');
-            n_tbs = length(nim.subunits(nonpar_set(1)).TBx); %number of TBx (assume this is the same for all subunits)!
+            n_tbs = length(nim.subunits(nonpar_set(1)).NLnonpar.TBx); %number of TBx (assume this is the same for all subunits)!
             et = ones(n_tbs,1);
             et([1 end]) = 0; %free boundaries
             Tmat = spdiags([et -2*et et], [-1 0 1], n_tbs, n_tbs)';

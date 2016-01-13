@@ -215,7 +215,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 gendist_x = linspace(-3,3,n_hist_bins); %otherwise, just pick an arbitrary x-axis to plot the NL
             end
             if strcmp(cur_sub.NLtype,'nonpar')
-                cur_modx = cur_sub.TBx; cur_mody = cur_sub.TBy;
+                cur_modx = cur_sub.NLnonpar.TBx; cur_mody = cur_sub.NLnonpar.TBy;
             else
                 cur_modx = gendist_x; cur_mody = cur_sub.apply_NL(cur_modx);
             end
