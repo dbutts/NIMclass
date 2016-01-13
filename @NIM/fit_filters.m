@@ -88,7 +88,7 @@ if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
 nim.check_inputs(Robs,Xstims,train_inds,gain_funs); %make sure input format is correct
 
 Nfit_subs = length(fit_subs); %number of targeted subunits
-non_fit_subs = setdiff([1:Nsubs],fit_subs); %elements of the model held constant
+non_fit_subs = setdiff( 1:Nsubs, fit_subs ); %elements of the model held constant
 spkhstlen = nim.spk_hist.spkhstlen; %length of spike history filter
 if fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if spkhstlen > 0 % create spike history Xmat IF NEEDED
@@ -114,6 +114,8 @@ for imod = fit_subs
     end
     lambda_L1(length(init_params) + (1:length(cur_kern))) = nim.subunits(imod).reg_lambdas.l1;
     init_params = [init_params; cur_kern]; % add coefs to initial param vector
+		% Verify non-parametric derivative is up-to-date
+		nim.subunits(imod).TBy_deriv = nim.subunits(imod).get_TB_derivative();
 end
 lambda_L1 = lambda_L1'/sum(Robs); % since we are dealing with LL/spk
 %add in filter offsets if needed

@@ -18,7 +18,7 @@ function nim = fit_upstreamNLs(nim, Robs, Xstims, varargin)
 Nsubs = length(nim.subunits); %number of subunits
 
 %set defaults for optional inputs
-poss_fitsubs = find(strcmp(nim.get_NLtypes,'nonpar'))'; %can only fit subunits with nonpar NLs
+poss_targets = find(strcmp(nim.get_NLtypes,'nonpar'))'; %can only fit subunits with nonpar NLs
 fit_subs = find(strcmp(nim.get_NLtypes,'nonpar'))'; %default is to fit all subunits with nonpar NLs
 gain_funs = []; %default has no gain_funs
 train_inds = nan; %default nan means train on all data
@@ -104,7 +104,7 @@ if Nfit_subs == 0
 end
 non_fit_subs = setdiff(1:Nsubs,fit_subs); %elements of the model held constant
 
-n_TBs = arrayfun(@(x) length(x.TBx),nim.subunits(fit_subs));  %get the number of TBs for each subunit
+n_TBs = arrayfun(@(x) length(x.NLnonpar.TBx),nim.subunits(fit_subs));  %get the number of TBs for each subunit
 assert(length(unique(n_TBs)) == 1,'Have to have same number of tent-bases for each subunit'); 
 n_TBs = unique(n_TBs);
 
@@ -131,7 +131,7 @@ end
 % Compute initial fit parameters
 init_params = [];
 for imod = fit_subs
-    init_params = [init_params; nim.subunits(imod).TBy']; %compile TB parameters 
+    init_params = [init_params; nim.subunits(imod).NLnonpar.TBy']; %compile TB parameters 
 end
 
 % Add in spike history coefs
@@ -165,20 +165,20 @@ end
 % Process NL monotonicity constraints, and constraints that the tent basis
 % centered at 0 should have coefficient of 0 (eliminate y-shift degeneracy)
 A = []; b = [];
-if any(arrayfun(@(x) x.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if any of our target nonpar subunits have a monotonicity constraint
+if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if any of our target nonpar subunits have a monotonicity constraint
     zvec = zeros(1,length(init_params)); % indices of tent-bases centered at 0
     for ii = 1:Nfit_subs
         cur_range = (ii-1)*n_TBs + (1:n_TBs);
         % For monotonicity constraint
-        if nim.subunits(fit_subs(ii)).TBparams.NLmon ~= 0
+        if nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon ~= 0
             for jj = 1:length(cur_range)-1 %create constraint matrix
                 cur_vec = zvec;
-                cur_vec(cur_range([jj jj + 1])) = nim.subunits(fit_subs(ii)).TBparams.NLmon*[1 -1];
+                cur_vec(cur_range([jj jj + 1])) = nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon*[1 -1];
                 A = cat(1,A,cur_vec);
             end
         end
         % Constrain the 0-coefficient to be 0
-        [~,zp] = find(nim.subunits(fit_subs(ii)).TBx == 0);
+        [~,zp] = find(nim.subunits(fit_subs(ii)).NLnonpar.TBx == 0);
         assert(~isempty(zp),'Need one TB to be centered at 0');
         cur_vec = zvec;
         cur_vec(cur_range(zp)) = 1;
@@ -245,8 +245,9 @@ for ii = 1:Nfit_subs
     else
         nim.subunits(fit_subs(ii)).scale = cur_std; %otherwise adjust the model output std dev
     end
-    nim.subunits(fit_subs(ii)).TBy = thisnl';
+    nim.subunits(fit_subs(ii)).NLnonpar.TBy = thisnl';
     nlmat_resc(:,ii) = thisnl';
+		nim.subunits(fit_subs(ii)).TBy_deriv = nim.subunits(fit_subs(ii)).get_TB_derivative();
 end
 if fit_spk_hist
     nim.spk_hist.coefs = params(Nfit_subs*n_TBs + (1:spkhstlen));
@@ -284,7 +285,7 @@ function [penLL, penLLgrad] = internal_LL_NLs(nim,params, Robs, XNL, Xspkhst, no
 fit_subs = fit_opts.fit_subs; 
 Nfit_subs = length(fit_subs);
 spkhstlen = nim.spk_hist.spkhstlen;
-n_TBs = length(nim.subunits(fit_subs(1)).TBx); 
+n_TBs = length(nim.subunits(fit_subs(1)).NLnonpar.TBx); 
 
 % ESTIMATE GENERATING FUNCTIONS (OVERALL AND INTERNAL)
 theta = params(end); %offset
@@ -313,7 +314,7 @@ if fit_opts.fit_spk_hist
 end
 
 % COMPUTE L2 PENALTIES AND GRADIENTS
-lambdas = nim.get_reg_lambdas('sub_inds',fit_subs,'nld2');
+lambdas = nim.get_reg_lambdas('subs',fit_subs,'nld2');
 if any(lambdas > 0)
     TBymat = reshape(all_TBy,n_TBs,[]);
     reg_penalties = lambdas.* sum((Tmat * TBymat).^2);
