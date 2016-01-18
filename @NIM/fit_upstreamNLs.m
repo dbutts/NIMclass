@@ -272,7 +272,7 @@ end
 [LL,~,mod_internals,LL_data] = nim.eval_model(Robs,Xstims,'gain_funs',gain_funs);
 nim = nim.set_subunit_scales(mod_internals.fgint); %update filter scales
 cur_fit_details = struct('fit_type','upstream_NLs','LL',LL,'filt_pen',LL_data.filt_pen,...
-    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim);
+    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim,'fit_subs',fit_subs);
 nim.fit_props = cur_fit_details;
 nim.fit_history = cat(1,nim.fit_history,cur_fit_details);
 end

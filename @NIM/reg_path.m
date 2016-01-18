@@ -68,9 +68,9 @@ for tar = targets
 			modvarargin{modcounter} = tar;
 			
 			if strcmp( lambdaID, 'nld2' )
-				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
+				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin{:} );
 			else
-				regfit = regfit.fit_filters( Robs, Xs, modvarargin );
+				regfit = regfit.fit_filters( Robs, Xs, modvarargin{:} );
 			end
 			
 			fitsaveM{nn} = regfit;
@@ -121,9 +121,9 @@ for tar = targets
 			regfit = nim.set_reg_params( 'subs', tar, lambdaID, L2s(nn) );
 			
 			if strcmp( lambdaID, 'nld2' )
-				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
+				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin{:} );
 			else
-				regfit = regfit.fit_filters( Robs, Xs, modvarargin );
+				regfit = regfit.fit_filters( Robs, Xs, modvarargin{:} );
 			end
 			fitsave{nn} = regfit;
 
@@ -151,9 +151,9 @@ for tar = targets
 			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
 			
 			if strcmp( lambdaID, 'nld2' )
-				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin );
+				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin{:} );
 			else
-				regfit = regfit.fit_filters( Robs, Xs, modvarargin );
+				regfit = regfit.fit_filters( Robs, Xs, modvarargin{:} );
 			end
 			fitsave{nn} = regfit;
 			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );

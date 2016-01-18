@@ -191,8 +191,8 @@ for ii = 1:Nfit_subs
 end
 [LL,~,mod_internals,LL_data] = nim.eval_model(Robs,Xstims,'gain_funs',gain_funs);
 nim = nim.set_subunit_scales(mod_internals.fgint); %update filter scales
-cur_fit_details = struct('fit_type','filter','LL',LL,'filt_pen',LL_data.filt_pen,...
-    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim);
+cur_fit_details = struct('fit_type','sub_weights','LL',LL,'filt_pen',LL_data.filt_pen,...
+    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim,'fit_subs',fit_subs);
 nim.fit_props = cur_fit_details; %store details of this fit
 nim.fit_history = cat(1,nim.fit_history,cur_fit_details);
 end

@@ -1,25 +1,26 @@
 function nim = fit_filters(nim, Robs, Xstims, varargin)
-%         nim = nim.fit_filters(Robs, Xstims, <train_inds>, varargin)
-%         estimate filters of NIM model.
-%         INPUTS:
-%            Robs: vector of response observations (e.g. spike counts)
-%            Xstims: cell array of stimuli
-%            <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
-%            optional flags:
-%                ('subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
-%                ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
-%                ('fit_offsets',fit_offsets): vector of bools, (or single bool) specifying whether
-%                   to fit the additive offset terms associated with each subunit
-%                ('optim_params',optim_params): struct of desired optimization parameters, can also
-%                   be used to override any of the default values for other optional inputs
-%                ('silent',silent): boolean variable indicating whether to suppress the iterative optimization display
-%                ('fit_spk_hist',fit_spk_hist): boolean indicating whether to hold the spk NL filter constant
-%         OUTPUTS:
-%            new nim object with optimized subunit filters
+% nim = nim.fit_filters(Robs, Xstims, <train_inds>, varargin)
+% estimate filters of NIM model.
+% INPUTS:
+%   Robs: vector of response observations (e.g. spike counts)
+%   Xstims: cell array of stimuli
+%   <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
+%   optional flags:
+%       ('subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
+%       ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
+%       ('fit_offsets',fit_offsets): vector of bools, (or single bool) specifying whether
+%           to fit the additive offset terms associated with each subunit
+%       ('optim_params',optim_params): struct of desired optimization parameters, can also
+%           be used to override any of the default values for other optional inputs
+%       ('silent',silent): boolean variable indicating whether to suppress the iterative optimization display
+%       ('fit_spk_hist',fit_spk_hist): boolean indicating whether to hold the spk NL filter constant
 %
+% OUTPUTS:
+% new nim object with optimized subunit filters
+
 Nsubs = length(nim.subunits); %number of subunits
 
-%set defaults for optional inputs
+% set defaults for optional inputs
 fit_subs = 1:Nsubs; %defualt to fitting all subunits (plus -1 for spkHist filter)
 gain_funs = []; %default has no gain_funs
 train_inds = nan; %default nan means train on all data
@@ -28,7 +29,7 @@ fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
 silent = false; %default is to display optimization output
 option_list = {'subs','gain_funs','silent','fit_spk_hist','fit_offsets'}; %list of possible option strings
 
-%over-ride any defaults with user-specified values
+% over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
 if ~isempty(OP_loc)
     optim_params = varargin{OP_loc+1};
@@ -44,7 +45,7 @@ else
     optim_params = [];
 end
 
-%now parse explicit optional input args
+% now parse explicit optional input args
 j = 1;
 while j <= length(varargin)
     flag_name = varargin{j};
@@ -81,7 +82,7 @@ if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
 end
 mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
 if any(strcmp(mod_NL_types(fit_offsets),'lin'))
-    %fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+    % fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
     fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
 end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
@@ -105,7 +106,7 @@ if ~isnan(train_inds) %if specifying a subset of indices to train model params
     if ~isempty(gain_funs); gain_funs = gain_funs(train_inds,:); end;
 end
 
-% PARSE INITIAL PARAMETERS
+%% PARSE INITIAL PARAMETERS
 [init_params,lambda_L1,sign_con] = deal([]);
 for imod = fit_subs
     cur_kern = nim.subunits(imod).filtK;
@@ -139,7 +140,7 @@ if ~fit_spk_hist && spkhstlen > 0 %add in spike history filter output, if we're 
     nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
 end
 
-% IDENTIFY ANY CONSTRAINTS 
+%% IDENTIFY ANY CONSTRAINTS 
 use_con = 0;
 LB = -Inf*ones(size(init_params));
 UB = Inf*ones(size(init_params));
@@ -158,7 +159,7 @@ if fit_spk_hist %if optimizing spk history term
     end
 end
 
-% GENERATE REGULARIZATION MATRICES
+%% GENERATE REGULARIZATION MATRICES
 Tmats = nim.make_Tikhonov_matrices();
 
 fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs', fit_subs, 'fit_offsets', fit_offsets); %put any additional fitting options into this struct
@@ -205,7 +206,7 @@ if first_order_optim > nim.opt_check_FO
     warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
 end
 
-% PARSE MODEL FIT
+%% PARSE MODEL FIT
 nim.spkNL.theta = params(end); %set new offset parameter
 if fit_spk_hist
     nim.spk_hist.coefs = params(Nfit_filt_params + (1:spkhstlen));
@@ -226,12 +227,16 @@ end
 [LL,~,mod_internals,LL_data] = nim.eval_model(Robs,Xstims,'gain_funs',gain_funs);
 nim = nim.set_subunit_scales(mod_internals.fgint); %update filter scales
 cur_fit_details = struct('fit_type','filter','LL',LL,'filt_pen',LL_data.filt_pen,...
-    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim);
+    'NL_pen',LL_data.NL_pen,'FO_optim',first_order_optim,'fit_subs',fit_subs);
 nim.fit_props = cur_fit_details; %store details of this fit
 nim.fit_history = cat(1,nim.fit_history,cur_fit_details);
 end
 
-%%
+
+
+
+%% ************************** INTERNAL FUNCTION ***************************
+
 function [penLL, penLLgrad] = internal_LL_filters( nim, params, Robs, Xstims, Xspkhst, nontarg_g, gain_funs, Tmats, fit_opts )
 % computes the penalized LL and its gradient wrt the filters for the given nim
 % with parameter vector params
