@@ -1,5 +1,5 @@
-function [] = display_model_dab(nim,Xstims,Robs,varargin)
-%         [] = nim.display_model_dab(<Xstims>,<Robs>,varargin)
+function [] = display_model_jmm(nim,Robs,Xstims,varargin)
+%         [] = nim.display_model_jmm(<Robs>,<Xstims>,varargin)
 %         Creates a display of the elements of a given NIM
 %              INPUTS:
 %                   <Robs>: observed spiking data. Needed if you want to utilize a spike-history
@@ -12,8 +12,8 @@ function [] = display_model_dab(nim,Xstims,Robs,varargin)
 %                         'no_spk_hist': include this flag to suppress plotting of spike history filter
 %                         ('gain_funs',gain_funs): if you want the computed generating signals to account for specified gain_funs
 
-if nargin < 2; Xstims = []; end;
-if nargin < 3; Robs = []; end;
+if nargin < 2; Robs = []; end;
+if nargin < 3; Xstims = []; end;
 
 Nsubs = length(nim.subunits);
 
@@ -90,11 +90,11 @@ if ~isempty(G) && plot_spkNL
     xlim(ax(2),cur_xrange);
     ylim(ax(1),yr);
     
-    xlabel('g')
-    ylabel(ax(1),'Predicted firing rate','fontsize',12);
-    ylabel(ax(2),'Probability','fontsize',12)
+    xlabel('Generating function')
+    ylabel(ax(1),'Predicted firing rate','fontsize',14);
+    ylabel(ax(2),'Probability','fontsize',14)
     set(ax(2),'ytick',[]);
-    title('Spiking NL','fontsize',12)
+    title('Spiking NL','fontsize',14)
 end
 
 if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
@@ -104,9 +104,9 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     xlim(nim.spk_hist.bin_edges([1 end])*nim.stim_params(1).dt)
     xl = xlim();
     line(xl,[0 0],'color','k','linestyle','--');
-    xlabel('Time');
+    xlabel('Time lag');
     ylabel('Spike history filter')
-    title('Spike history term','fontsize',12)
+    title('Spike history term','fontsize',14)
     
     subplot(2,1,2)
     stairs(nim.spk_hist.bin_edges(1:end-1)*nim.stim_params(1).dt,nim.spk_hist.coefs);
@@ -114,9 +114,9 @@ if nim.spk_hist.spkhstlen > 0 && plot_spk_hist
     set(gca,'xscale','log')
     xl = xlim();
     line(xl,[0 0],'color','k','linestyle','--');
-    xlabel('Time');
+    xlabel('Time lag');
     ylabel('Spike history filter')
-    title('Spk Hist Log-axis','fontsize',12)
+    title('Spk Hist Log-axis','fontsize',14)
 end
 
 % CREATE FIGURE SHOWING INDIVIDUAL SUBUNITS
@@ -126,8 +126,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
     if ~isempty(cur_subs)
         fig_handles.stim_filts = figure();
         if nim.stim_params(tt).dims(3) > 1 %if 2-spatial-dimensional stim
-            %n_columns = nim.stim_params(tt).dims(1) + 1;
-						n_columns = 2 + 1;
+            n_columns = nim.stim_params(tt).dims(1) + 1;
             n_rows = length(cur_subs);
         else
             n_columns = max(round(sqrt(length(cur_subs)/2)),1);
@@ -161,7 +160,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                     xr = tax([1 end]);
                     line(xr,[0 0],'color','k','linestyle','--');
                     xlim(xr);
-                    xlabel('Time')
+                    xlabel('Time lag')
                     ylabel('Filter coef');
                 elseif nPix(2) == 1
                     imagesc(1:nPix(1),tax,reshape(cur_sub.filtK,nLags,nPix(1)));
@@ -171,50 +170,32 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                     colormap(gray);
                     set(gca,'ydir','normal');
                     xlabel('Pixels')
-                    ylabel('Time');
+                    ylabel('Time lags');
                 end
                 if strcmp(cur_sub.NLtype,'lin')
-                    title('Lin','fontsize',12)
+                    title('Linear stimulus filter','fontsize',14)
                 elseif cur_sub.weight > 0
-                    title('Exc','fontsize',12);
+                    title('Excitatory stimulus filter','fontsize',14);
                 elseif cur_sub.weight < 0
-                    title('Sup','fontsize',12);
+                    title('Suppressive stimulus filter','fontsize',14);
                 end
             else %if 2-spatial dimensional stim
                 maxval = max(abs(cur_sub.filtK));
-%                for jj = 1:nim.stim_params(tt).dims(1) %loop over time slices
-%                    subplot(n_rows,n_columns,(imod-1)*n_columns + jj);
-%                    cur_fdims = jj - 1 + (1:nim.stim_params(tt).dims(1):prod(nim.stim_params(tt).dims));
-%                    imagesc(1:nPix(1),1:nPix(2),reshape(cur_sub.filtK(cur_fdims),nim.stim_params(tt).dims(2:end)));
-%                    colormap(gray)
-%                    if strcmp(cur_sub.NLtype,'lin')
-%                        title(sprintf('Lin-input Lag %d',jj-1),'fontsize',10);
-%                    elseif cur_sub.weight > 0
-%                        title(sprintf('E-Input Lag %d',jj-1),'fontsize',10);
-%                    elseif cur_sub.weight < 0
-%                        title(sprintf('S-Input Lag %d',jj-1),'fontsize',10);
-%                    end
-%                    caxis([-maxval maxval]*0.85);
-%								end
-							k = reshape( cur_sub.filtK, nim.stim_params(tt).dims(1), prod(nim.stim_params(tt).dims(2:3)) );
-							Xtra_col = 0;
-							subplot( n_rows, n_columns+Xtra_col, (imod-1)*(n_columns+Xtra_col) + 1 );
-							plot( k )
-							if strcmp(cur_sub.NLtype,'lin')
-								title(sprintf('Lin'),'fontsize',10);
-							elseif cur_sub.sign == 1
-								title(sprintf('Exc'),'fontsize',10);
-							elseif cur_sub.sign == -1
-								title(sprintf('Sup'),'fontsize',10);
-							end	
-							axis tight
-							[maxamp,bestlat] = max(max(abs(k')));
-							subplot( n_rows, n_columns+Xtra_col, (imod-1)*(n_columns+Xtra_col) + 2 );
-							colormap(gray)
-							imagesc(reshape(k(bestlat,:)/maxamp,nim.stim_params(tt).dims(2:3)),[-1 1])								
-						end
-				
-						
+                for jj = 1:nim.stim_params(tt).dims(1) %loop over time slices
+                    subplot(n_rows,n_columns,(imod-1)*n_columns + jj);
+                    cur_fdims = jj - 1 + (1:nim.stim_params(tt).dims(1):prod(nim.stim_params(tt).dims));
+                    imagesc(1:nPix(1),1:nPix(2),reshape(cur_sub.filtK(cur_fdims),nim.stim_params(tt).dims(2:end)));
+                    colormap(gray)
+                    if strcmp(cur_sub.NLtype,'lin')
+                        title(sprintf('Lin-input Lag %d',jj-1),'fontsize',10);
+                    elseif cur_sub.weight > 0
+                        title(sprintf('E-Input Lag %d',jj-1),'fontsize',10);
+                    elseif cur_sub.weight < 0
+                        title(sprintf('S-Input Lag %d',jj-1),'fontsize',10);
+                    end
+                    caxis([-maxval maxval]*0.85);
+                end
+            end
             
             %PLOT UPSTREAM NL
             if nim.stim_params(tt).dims(3) == 1
@@ -226,7 +207,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 [gendist_y,gendist_x] = hist(gint(:,cur_subs(imod)),n_hist_bins);
                 
                 % Sometimes the gendistribution has a lot of zeros (dont want to screw up plot)
-                [a,b] = sort(gendist_y);
+                [a b] = sort(gendist_y);
                 if a(end) > a(end-1)*1.5
                     gendist_y(b(end)) = gendist_y(b(end-1))*1.5;
                 end
@@ -234,7 +215,7 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 gendist_x = linspace(-3,3,n_hist_bins); %otherwise, just pick an arbitrary x-axis to plot the NL
             end
             if strcmp(cur_sub.NLtype,'nonpar')
-                cur_modx = cur_sub.TBx; cur_mody = cur_sub.TBy;
+                cur_modx = cur_sub.NLnonpar.TBx; cur_mody = cur_sub.NLnonpar.TBy;
             else
                 cur_modx = gendist_x; cur_mody = cur_sub.apply_NL(cur_modx);
             end
@@ -256,8 +237,8 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 set(ax(2),'ytick',[])
                 yl = ylim();
                 line([0 0],yl,'color','k','linestyle','--');
-                ylabel(ax(1),'f_i(g)','fontsize',12);
-                %ylabel(ax(2),'Probability','fontsize',12)
+                ylabel(ax(1),'Subunit output','fontsize',12);
+                ylabel(ax(2),'Probability','fontsize',12)
             else
                 h = plot(cur_modx,cur_mody,'linewidth',1);
                 if strcmp(cur_sub.NLtype,'nonpar')
@@ -265,11 +246,11 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 end
                 xlim(cur_xrange)
                 ylim([min(cur_mody) max(cur_mody)]);
-                ylabel('f_i(g)','fontsize',12);
+                ylabel('Subunit output','fontsize',12);
             end
             box off
-            xlabel('g')
-            %title('NL','fontsize',12)
+            xlabel('Internal generating function')
+            title('Upstream NL','fontsize',14)
         end
     end
 end

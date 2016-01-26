@@ -44,7 +44,7 @@ methods
     nim = fit_weights(nim, Robs, Xstims, varargin);             % fit linear weights on each subunit
     nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );
     [] = display_model(nim,Robs,Xstims,varargin);               % display current model
-    [] = display_model_dab(nim,Robs,Xstims,varargin);           % display current model
+    [] = display_model_jmm(nim,Robs,Xstims,varargin);           % display current model
 end
 methods (Static)
     Xmat = create_time_embedding( stim, params ) %make time-embedded stimulus
