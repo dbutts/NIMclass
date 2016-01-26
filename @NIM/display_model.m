@@ -202,9 +202,9 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
 							plot( k )
 							if strcmp(cur_sub.NLtype,'lin')
 								title(sprintf('Lin'),'fontsize',10);
-							elseif cur_sub.sign == 1
+							elseif cur_sub.weight == 1
 								title(sprintf('Exc'),'fontsize',10);
-							elseif cur_sub.sign == -1
+							elseif cur_sub.weight == -1
 								title(sprintf('Sup'),'fontsize',10);
 							end	
 							axis tight

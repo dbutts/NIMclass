@@ -11,47 +11,49 @@ classdef NIM
 %   
 % Reference: 
 %         McFarland JM, Cui Y, Butts DA (2013) Inferring nonlinear neuronal computation based on physiologically plausible inputs. PLoS Computational Biology 9(7): e1003142
-% Created by James McFarland, September 2015
+% 
+% Original: Created by James McFarland, September 2015
+% Modified: By NeuroTheory Lab at University of Maryland (Jan 2016-) 
 
-%%
+%% PROPERTIES
 properties
-    spkNL;          % struct defining the spiking NL function
-    subunits;       % array of subunit objects
-    stim_params;    % struct array of parameters characterizing the stimuli that the model acts on, must have a .dims field
-    noise_dist;     % noise distribution class specifying the noise model
-    spk_hist;       % class defining the spike-history filter properties
-    fit_props;      % struct containing information about model fit evaluations
-    fit_history;    % struct containing info about history of fitting
+	spkNL;          % struct defining the spiking NL function
+	subunits;       % array of subunit objects
+	stim_params;    % struct array of parameters characterizing the stimuli that the model acts on, must have a .dims field
+	noise_dist;     % noise distribution class specifying the noise model
+	spk_hist;       % class defining the spike-history filter properties
+	fit_props;      % struct containing information about model fit evaluations
+	fit_history;    % struct containing info about history of fitting
 end
 
 properties (Hidden)
-    init_props;         %struct containing details about model initialization
-    allowed_reg_types = {'nld2','d2xt','d2x','d2t','l2','l1'}; %set of allowed regularization types
-    allowed_spkNLs = {'lin','rectpow','exp','softplus','logistic'}; %set of NL functions currently implemented
-    allowed_noise_dists = {'poisson','bernoulli','gaussian'}; %allowed noise distributions
-    version = '0.2';    %source code version used to generate the model
-    create_on = date;    %date model was generated
-    min_pred_rate = 1e-50; %minimum predicted rate (for non-negative data) to avoid NAN LL values
-    opt_check_FO = 1e-2; %threshold on first-order optimality for fit-checking
+	init_props;         % struct containing details about model initialization
+	allowed_reg_types = {'nld2','d2xt','d2x','d2t','l2','l1'}; % set of allowed regularization types
+	allowed_spkNLs = {'lin','rectpow','exp','softplus','logistic'}; % set of NL functions currently implemented
+	allowed_noise_dists = {'poisson','bernoulli','gaussian'}; % allowed noise distributions
+	version = '1.0';    % source code version used to generate the model
+	create_on = date;   % date model was generated
+	min_pred_rate = 1e-50; % minimum predicted rate (for non-negative data) to avoid NAN LL values
+	opt_check_FO = 1e-2;   % threshold on first-order optimality for fit-checking
 end
     
 %% METHODS DEFINED IN SEPARATE FILES
 methods
-    nim = fit_filters(nim, Robs, Xstims, varargin);             % filter model stim-filters 
-    nim = fit_upstreamNLs(nim, Robs, Xstims, varargin);         % fit model upstream NLs
-    nim = fit_spkNL(nim, Robs, Xstims, varargin);               % fit parameters of spkNL function
-    nim = fit_NLparams(nim, Robs, Xstims, varargin);            % fit parameters of (parametric) upstream NL functions
-    nim = fit_weights(nim, Robs, Xstims, varargin);             % fit linear weights on each subunit
-    nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );
-    [] = display_model(nim,Robs,Xstims,varargin);               % display current model
-    [] = display_model_jmm(nim,Robs,Xstims,varargin);           % display current model
+	nim = fit_filters( nim, Robs, Xstims, varargin );             % filter model stim-filters 
+	nim = fit_upstreamNLs( nim, Robs, Xstims, varargin );         % fit model upstream NLs
+	nim = fit_spkNL( nim, Robs, Xstims, varargin );               % fit parameters of spkNL function
+	nim = fit_NLparams( nim, Robs, Xstims, varargin );            % fit parameters of (parametric) upstream NL functions
+	nim = fit_weights( nim, Robs, Xstims, varargin );             % fit linear weights on each subunit
+	nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );     % determine optimal regularization using cross-val data
+	[] = display_model( nim, Robs, Xstims, varargin );            % display current model
+	[] = display_model_jmm( nim, Robs, Xstims, varargin );        % display current model (original version)
 end
 methods (Static)
-    Xmat = create_time_embedding( stim, params ) %make time-embedded stimulus
-    Xshifted = shift_mat_zpad( X, shift, dim ) %shift matrix along given dimension
+	Xmat = create_time_embedding( stim, params ) % make time-embedded stimulus
+	Xshifted = shift_mat_zpad( X, shift, dim ) % shift matrix along given dimension
 end
 methods (Static, Hidden)
-    Tmat = create_Tikhonov_matrix( stim_params, reg_type ); %make regularization matrices
+	Tmat = create_Tikhonov_matrix( stim_params, reg_type ); % make regularization matrices
 end
 
 %% ********************** Constructor *************************************
