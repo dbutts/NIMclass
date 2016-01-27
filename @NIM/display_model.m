@@ -180,22 +180,8 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
                 elseif cur_sub.weight < 0
                     title('Sup','fontsize',12);
                 end
-            else %if 2-spatial dimensional stim
-                maxval = max(abs(cur_sub.filtK));
-%                for jj = 1:nim.stim_params(tt).dims(1) %loop over time slices
-%                    subplot(n_rows,n_columns,(imod-1)*n_columns + jj);
-%                    cur_fdims = jj - 1 + (1:nim.stim_params(tt).dims(1):prod(nim.stim_params(tt).dims));
-%                    imagesc(1:nPix(1),1:nPix(2),reshape(cur_sub.filtK(cur_fdims),nim.stim_params(tt).dims(2:end)));
-%                    colormap(gray)
-%                    if strcmp(cur_sub.NLtype,'lin')
-%                        title(sprintf('Lin-input Lag %d',jj-1),'fontsize',10);
-%                    elseif cur_sub.weight > 0
-%                        title(sprintf('E-Input Lag %d',jj-1),'fontsize',10);
-%                    elseif cur_sub.weight < 0
-%                        title(sprintf('S-Input Lag %d',jj-1),'fontsize',10);
-%                    end
-%                    caxis([-maxval maxval]*0.85);
-%								end
+            else % if 2-spatial dimensional stim  
+							maxval = max(abs(cur_sub.filtK));
 							k = reshape( cur_sub.filtK, nim.stim_params(tt).dims(1), prod(nim.stim_params(tt).dims(2:3)) );
 							Xtra_col = 0;
 							subplot( n_rows, n_columns+Xtra_col, (imod-1)*(n_columns+Xtra_col) + 1 );
@@ -213,8 +199,6 @@ for tt = Xtargs(Xtargs > 0) %loop over stimuli
 							colormap(gray)
 							imagesc(reshape(k(bestlat,:)/maxamp,nim.stim_params(tt).dims(2:3)),[-1 1])								
 						end
-				
-						
             
             %PLOT UPSTREAM NL
             if nim.stim_params(tt).dims(3) == 1
