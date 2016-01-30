@@ -202,7 +202,10 @@ methods
 		end
 	end
 
-	%% ********************** Display functions *************************************
+end
+
+%% ********************** Display functions *************************************
+methods
 	
 	function [] = display_filter( subunit, dims, varargin )
 	% Usage: [] = subunit.display_filter( dims, <plot_location>, varargin )
@@ -216,23 +219,86 @@ methods
 	%	    'dt': enter if you want time axis scaled by dt
 	%	    'time_rev': plot temporal filter reversed in time (zero lag on right)
 	%	    'xt_rev': plot 2-D plots with time on x-axis
+	%     'single': 1-D plots have only best latency/spatial position instead of all
 	%	    'notitle': suppress title labeling subunit type
+	%     'xt-spatial': for xt-plots (1-D space), plot spatial instead of temporal as second subplot
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
-		[plotloc,parsed_options] = NIM.parse_varargin( varargin );
+
+		[plotloc,parsed_options,modvarargin] = NIM.parse_varargin( varargin, 'notitle','xt-spatial' );
 		if isempty(plotloc)
 			plotloc = [1 2 1];
 		end
+		assert(plotloc(3) < plotloc(2),'Invalid plot location.' )
+		
+		if prod(dims(2:3)) == 1
+
+			% then 1-dimensional filter
+			subplot( plotloc(1), plotloc(2), plotloc(3)+[0 1]); hold on
+			subunit.display_temporal_filter( dims, modvarargin{:} );
+			
+		elseif dims(3) == 1
+			
+			% then space-time plot in first subplot
+			k = reshape( subunit.get_filtK(), dims(1:2) );
+			subplot( plotloc(1), plotloc(2), plotloc(3) )
+			xs = 1:dims(2);
+			imagesc( ts,xs, k, Kmax*[-1 1] )
+			if isfield(parsed_options,'colormap')
+				colormap(parsed_options.colormap);
+			else
+				colormap('gray');
+			end
+			
+			% Plot temporal (default) or spatial in second subplot
+			subplot( plotloc(1), plotloc(2), plotloc(3)+1 );
+			if isfield( parsed_options, 'xt-spatial' )
+				subunit.display_spatial_filter( dims, modvarargin{:} );
+			else
+				subunit.display_temporal_filter( dims, modvarargin{:} );
+			end
+			
+		else
+			
+			% 3-d filter
+			subplot( plotloc(1), plotloc(2), plotloc(3) )
+			subunit.display_temporal_filter( dims, modvarargin{:} );
+			subplot( plotloc(1), plotloc(2), plotloc(3)+1 )
+			subunit.display_spatial_filter( dims, modvarargin{:} );
+		end
+		
+		if ~isfield( parsed_options, 'notitle' )
+			subplot( plotloc(1), plotloc(2), plotloc(3) ) % to put title back on the first
+			if strcmp(subunit.NLtype,'lin')
+				title(sprintf('Lin'),'fontsize',10);
+			elseif subunit.weight == 1
+				title(sprintf('Exc'),'fontsize',10);
+			elseif subunit.weight == -1				
+				title(sprintf('Sup'),'fontsize',10);			
+			end	
+		end
+	end
+		
+	function [] = display_temporal_filter( subunit, dims, varargin )
+	% Usage: [] = subunit.display_filter( dims, varargin )
+	%
+	% Plots temporal elements of filter in a 2-row, 1-column subplot
+	% INPUTS:
+	%	  plot_location: 3-integer list = [Fig_rows Fig_col Loc] arguments to subplot. Default = [1 2 1]
+	%	  optional arguments (varargin)
+	%	    'color': enter to specify color of non-image-plots (default is blue). This could also have dashes etc
+	%	    'dt': enter if you want time axis scaled by dt
+	%	    'time_rev': plot temporal filter reversed in time (zero lag on right)
+	%	    'single': plot single temporal function at best spatial position
+	
+	
+		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
+		[~,parsed_options] = NIM.parse_varargin( varargin );
 		assert(plotloc(3) <= prod(plotloc(1:2)),'Invalid plot location.')
 		if isfield(parsed_options,'color')
 			clr = parsed_options.color;
 		else
 			clr = 'b';
-		end
-		if isfield(parsed_options,'colormap')
-			clrmap = parsed_options.colormap;
-		else
-			clrmap = 'gray';
 		end
 		
 		% Time axis details
@@ -255,65 +321,88 @@ methods
 		Kmax = max(abs(subunit.get_filtK()));
 		
 		if prod(dims(2:3)) == 1
-
 			% then 1-dimensional filter
-			subplot( plotloc(1), plotloc(2), plotloc(3)+[0 1]); hold on
-			plot( ts, subunit.filtK, clr, 'LineWidth',0.8 );
-			axis([min(ts) max(ts) min(subunit.filtK)+L*[-0.1 1.1]])
-			if isfield(parsed_options,'time_rev')
-				box on
-			else
-				box off
-			end
-			
-		elseif dims(3) == 1
-			% then 2-d plot
-			k = reshape( subunit.get_filtK(), dims(1:2) );
-			subplot( plotloc(1), plotloc(2), plotloc(3) )
-			xs = 1:dims(2);
-			imagesc( ts,xs, k, Kmax*[-1 1] )
-			colormap(clrmap)
-			
-			% Plot spatial (or temporal?) functions in second plot
-			subplot( plotloc(1), plotloc(2), plotloc(3)+1 ); hold on
-			plot( xs, k', clr, 'LineWidth',0.5 );
-			axis([1 xs(end) Kmax*[-1 1]])
-			subplot( plotloc(1), plotloc(2), plotloc(3) ) % to put title back on the first
-
+			k = subunit.get_filtK();
 		else
-			% then 3-d plot -- plot 2-d cross-sections of best spatial and best temporal
-			k = reshape( subunit.get_filtK(), dims(1),prod(dims(2:3)) );
+			% then 2-d or 3-d filter
+			k = reshape( subunit.get_filtK(), [dims(1) prod(dims(2:3))] );
+			if isfield(parsed_options,'single')
+				% then find best spatial
+				[~,bestX] = max(std(k,1,1));
+				k = k(:,bestX);
+			end
+		end
+		plot( ts, k, clr, 'LineWidth',0.8 );
+		hold on
+		plot([ts(1) ts(end)],[0 0],'k--')
+		
+		axis([min(ts) max(ts) min(subunit.filtK)+L*[-0.1 1.1]])
+		if isfield(parsed_options,'time_rev')
+			box on
+		else
+			box off
+		end
+	end			
 
-			% Plot temporal kernels
-			subplot( plotloc(1), plotloc(2), plotloc(3) )			
+	function [] = display_spatial_filter( subunit, dims, varargin )
+	% Usage: [] = subunit.display_spatial_filter( dims, varargin )
+	%
+	% Plots subunit filter in a 1-row, 1-column subplot
+	% INPUTS:
+	%	  plot_location: 3-integer list = [Fig_rows Fig_col Loc] arguments to subplot. Default = [1 1 1]
+	%	  optional arguments (varargin)
+	%	    'single': plot single temporal function at best spatial position
+	%	    'color': enter to specify color of non-image-plots (default is blue). This could also have dashes etc
+	%			'colormap': choose colormap for 2-D plots. Default is 'gray'
 
-			[~,bestsp] = max(max(abs(k')));			
-			[~,bestlat] = max(max(abs(k')));
+		if prod(dims(2:3)) == 1
+			warning( 'No spatial dimensions to plot.' )
+			return
+		end
+		
+		assert( (nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
+
+		[~,parsed_options] = NIM.parse_varargin( varargin, 'notitle' );
+		if isfield(parsed_options,'color')
+			clr = parsed_options.color;
+		else
+			clr = 'b';
+		end
+		if isfield(parsed_options,'colormap')
+			clrmap = parsed_options.colormap;
+		else
+			clrmap = 'gray';
+		end
+		
+		k = reshape( subunit.get_filtK(), [dims(1) prod(dims(2:3))] );
+		if dims(3) == 1
+			% then 1-dimensional spatial filter
+			L = max(k(:))-min(subunit.get_filtK());
+		
+			if isfield(parsed_options,'single')
+				% then find best spatial
+				[~,bestT] = max(std(k,1,2));
+				k = k(bestT,:);
+			end
+			plot( ts, k, clr, 'LineWidth',0.8 );
+			hold on
+			plot([1 dims(2)],[0 0],'k--')
+		else
 			
-			plot( ts, k, clr, 'LineWidth', 0.5 )
-			axis([min(ts) max(ts) min(subunit.filtK)+L*[-0.1 1.1]])
+			% then 2-dimensional spatial filter
+			[~,bestlat] = max(max(abs(k')));
+			Kmax = max(abs(k(:)));
 
-			subplot( plotloc(1), plotloc(2), plotloc(3)+1 )			
 			imagesc( reshape(k(bestlat,:)/Kmax,dims(2:3)), [-1 1] )								
 			colormap(clrmap)
-			subplot( plotloc(1), plotloc(2), plotloc(3) ) % to put title back on the first
-		end
 
-		if ~isfield(parsed_options,'notitle')
-			if strcmp(subunit.NLtype,'lin')
-				title(sprintf('Lin'),'fontsize',10);
-			elseif subunit.weight == 1
-				title(sprintf('Exc'),'fontsize',10);
-			elseif subunit.weight == -1				
-				title(sprintf('Sup'),'fontsize',10);			
-			end	
 		end
 	end
-				
-	function [] = display_NL( subunit, gint, varargin )
-	% Usage: [] = subunit.display_filter( gint, <plot_location>, varargin )
+	
+	function [] = display_NL( subunit, varargin )
+	% Usage: [] = subunit.display_filter( <gint>, varargin )
 	%
-	% Plots subunit upstream in a 1-row, 1-column subplot
+	% Plots subunit upstream NL
 	% INPUTS:
 	%	  plot_location: 3-integer list = [Fig_rows Fig_col Loc] arguments to subplot. Default = [1 1 1]
 	%	  optional arguments (varargin)
@@ -323,11 +412,7 @@ methods
 		
 		n_hist_bins = 80; % internal parameter determining histogram resolution
 
-		[plotloc,parsed_options] = NIM.parse_varargin( varargin );
-		if isempty(plotloc)
-			plotloc = [1 1 1];
-		end
-		assert(plotloc(3) <= prod(plotloc(1:2)),'Invalid plot location.')
+		[gint,parsed_options] = NIM.parse_varargin( varargin );
 		if isfield(parsed_options,'color')
 			clr = parsed_options.color;
 		else
@@ -337,8 +422,6 @@ methods
 			gint = [];
 		end
 		
-		subplot(plotloc(1),plotloc(2),plotloc(3))
-
 		if ~isempty(gint) % if computing distribution of filtered stim
 			[gendist_y,gendist_x] = hist( gint, n_hist_bins );
           
@@ -395,9 +478,11 @@ methods
 		xlabel('g')
 	end
 
+end
+
+%% ********************** Getting Methods *********************************
+methods
 	
-	%% ********************** Getting Methods *********************************
-        
 	function filtK = get_filtK( subunit )
 	% Usage: filtK = get_filtK( subunit )
 	%
@@ -405,7 +490,6 @@ methods
 	
 		filtK = subunit.filtK;      
 	end
-	
 	
 	function rsub = reinitialize_subunit( sub0, weight, NLtype, Xtarg, NLoffset )
 	% Usage: rsub = reinitialize_subunit( sub0, weight, NLtype, Xtarg, NLoffset )
@@ -432,11 +516,9 @@ methods
 	end
 				
 end
-		
-		
+
 %% HIDDEN METHODS
-methods (Hidden)
-      
+methods (Hidden)      
         
 	function fprime = get_TB_derivative( subunit )
 	% Usage: fprime = subunit.get_TB_derivative()
@@ -498,7 +580,6 @@ methods (Static)
 			tent_out(cur_set) = 1;
 		end	
 	end
-	
 	
 	function reg_lambdas = init_reg_lambdas()
   % Usage: reg_lambdas = init_reg_lambdas()

@@ -1,16 +1,16 @@
-function [] = display_model(nim,Xstims,Robs,varargin)
-%         [] = nim.display_model(<Xstims>,<Robs>,varargin)
-%         Creates a display of the elements of a given NIM
-%              INPUTS:
-%                   <Robs>: observed spiking data. Needed if you want to utilize a spike-history
-%                       filter. Otherwise set as empty
-%                   <Xstims>: Stimulus cell array. Needed if you want to display the distributions of generating signals
-%                   optional_flags:
-%                         ('xtargs',xtargs): indices of stimuli for which we want to plot the filters
-%                         ('sub_inds',sub_inds): set of subunits to plot
-%                         'no_spknl': include this flag to suppress plotting of the spkNL
-%                         'no_spk_hist': include this flag to suppress plotting of spike history filter
-%                         ('gain_funs',gain_funs): if you want the computed generating signals to account for specified gain_funs
+function [] = display_model_dab( nim, Xstims, Robs, varargin )
+% Usage: [] = nim.display_model( <Xstims>, <Robs>, varargin )
+% Creates a display of the elements of a given NIM
+% INPUTS:
+%   <Robs>: observed spiking data. Needed if you want to utilize a spike-history
+%           filter. Otherwise set as empty
+%   <Xstims>: Stimulus cell array. Needed if you want to display the distributions of generating signals
+%   Optional_flags:
+%     ('xtargs',xtargs): indices of stimuli for which we want to plot the filters
+%     ('sub_inds',sub_inds): set of subunits to plot
+%     'no_spknl': include this flag to suppress plotting of the spkNL
+%     'no_spk_hist': include this flag to suppress plotting of spike history filter
+%     ('gain_funs',gain_funs): if you want the computed generating signals to account for specified gain_funs
 
 if nargin < 2; Xstims = []; end;
 if nargin < 3; Robs = []; end;
