@@ -221,15 +221,16 @@ methods
 	%	    'xt_rev': plot 2-D plots with time on x-axis
 	%     'single': 1-D plots have only best latency/spatial position instead of all
 	%	    'notitle': suppress title labeling subunit type
+	%			'xt-separable': do not plot x-t plot, but rather separable x and seperable t
 	%     'xt-spatial': for xt-plots (1-D space), plot spatial instead of temporal as second subplot
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
 
-		[plotloc,parsed_options,modvarargin] = NIM.parse_varargin( varargin, 'notitle','xt-spatial' );
+		[plotloc,parsed_options,modvarargin] = NIM.parse_varargin( varargin, {'notitle','xt-spatial','xt-separable'} );
 		if isempty(plotloc)
 			plotloc = [1 2 1];
 		end
-		assert(plotloc(3) < plotloc(2),'Invalid plot location.' )
+		assert( plotloc(3) < prod(plotloc(1:2)), 'Invalid plot location.' )
 		
 		if prod(dims(2:3)) == 1
 
@@ -239,17 +240,21 @@ methods
 			
 		elseif dims(3) == 1
 			
-			% then space-time plot in first subplot
-			k = reshape( subunit.get_filtK(), dims(1:2) );
+			% then space-time plot in first subplot unless 'xt-separable'
 			subplot( plotloc(1), plotloc(2), plotloc(3) )
-			xs = 1:dims(2);
-			imagesc( ts,xs, k, Kmax*[-1 1] )
-			if isfield(parsed_options,'colormap')
-				colormap(parsed_options.colormap);
+			if isfield( parsed_options, 'xt-separable' )
+				subunit.display_spatial_filter( dims, modvarargin{:} );
 			else
-				colormap('gray');
+				k = reshape( subunit.get_filtK(), dims(1:2) );
+				xs = 1:dims(2);
+				imagesc( ts,xs, k, Kmax*[-1 1] )
+				if isfield(parsed_options,'colormap')
+					colormap(parsed_options.colormap);
+				else
+					colormap('gray');
+				end
 			end
-			
+				
 			% Plot temporal (default) or spatial in second subplot
 			subplot( plotloc(1), plotloc(2), plotloc(3)+1 );
 			if isfield( parsed_options, 'xt-spatial' )
@@ -280,7 +285,7 @@ methods
 	end
 		
 	function [] = display_temporal_filter( subunit, dims, varargin )
-	% Usage: [] = subunit.display_filter( dims, varargin )
+	% Usage: [] = subunit.display_temporal_filter( dims, varargin )
 	%
 	% Plots temporal elements of filter in a 2-row, 1-column subplot
 	% INPUTS:
@@ -290,7 +295,6 @@ methods
 	%	    'dt': enter if you want time axis scaled by dt
 	%	    'time_rev': plot temporal filter reversed in time (zero lag on right)
 	%	    'single': plot single temporal function at best spatial position
-	
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
 		[~,parsed_options] = NIM.parse_varargin( varargin );
@@ -318,7 +322,6 @@ methods
 		end
 
 		L = max(subunit.get_filtK())-min(subunit.get_filtK());
-		Kmax = max(abs(subunit.get_filtK()));
 		
 		if prod(dims(2:3)) == 1
 			% then 1-dimensional filter
@@ -362,7 +365,7 @@ methods
 		
 		assert( (nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
 
-		[~,parsed_options] = NIM.parse_varargin( varargin, 'notitle' );
+		[~,parsed_options] = NIM.parse_varargin( varargin );
 		if isfield(parsed_options,'color')
 			clr = parsed_options.color;
 		else
@@ -376,9 +379,8 @@ methods
 		
 		k = reshape( subunit.get_filtK(), [dims(1) prod(dims(2:3))] );
 		if dims(3) == 1
+
 			% then 1-dimensional spatial filter
-			L = max(k(:))-min(subunit.get_filtK());
-		
 			if isfield(parsed_options,'single')
 				% then find best spatial
 				[~,bestT] = max(std(k,1,2));
