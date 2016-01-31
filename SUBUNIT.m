@@ -209,19 +209,19 @@ methods
 	
 	function [] = display_filter( subunit, dims, varargin )
 	% Usage: [] = subunit.display_filter( dims, <plot_location>, varargin )
-	%
 	% Plots subunit filter in a 2-row, 1-column subplot
+	%
 	% INPUTS:
 	%	  plot_location: 3-integer list = [Fig_rows Fig_col Loc] arguments to subplot. Default = [1 2 1]
 	%	  optional arguments (varargin)
-	%	    'color': enter to specify color of non-image-plots (default is blue). This could also have dashes etc
-	%			'colormap': choose colormap for 2-D plots. Default is 'gray'
+	%     'color': enter to specify color of non-image-plots (default is blue). This could also have dashes etc
+	%     'colormap': choose colormap for 2-D plots. Default is 'gray'
 	%	    'dt': enter if you want time axis scaled by dt
 	%	    'time_rev': plot temporal filter reversed in time (zero lag on right)
 	%	    'xt_rev': plot 2-D plots with time on x-axis
 	%     'single': 1-D plots have only best latency/spatial position instead of all
 	%	    'notitle': suppress title labeling subunit type
-	%			'xt-separable': do not plot x-t plot, but rather separable x and seperable t
+	%     'xt-separable': do not plot x-t plot, but rather separable x and seperable t
 	%     'xt-spatial': for xt-plots (1-D space), plot spatial instead of temporal as second subplot
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
@@ -408,18 +408,12 @@ methods
 	% INPUTS:
 	%	  plot_location: 3-integer list = [Fig_rows Fig_col Loc] arguments to subplot. Default = [1 1 1]
 	%	  optional arguments (varargin)
-	%	    'color': enter to specify color of non-image-plots (default is blue)
 	%	    'sign': plot upside-down if suppressive
-	%			'y_offset': y-axis offset
+	%     'y_offset': y-axis offset
 		
 		n_hist_bins = 80; % internal parameter determining histogram resolution
 
 		[gint,parsed_options] = NIM.parse_varargin( varargin );
-		if isfield(parsed_options,'color')
-			clr = parsed_options.color;
-		else
-			clr = 'b';
-		end
 		if nargin < 2
 			gint = [];
 		end

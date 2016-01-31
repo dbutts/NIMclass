@@ -976,7 +976,7 @@ methods
 			Ncols = 3;
 		else
 			% Then need extra column (and possibly extra row)
-			Nrows = min([Nmods sum(extra_plots)]);
+			Nrows = max([Nmods sum(extra_plots)]);
 			Ncols = 4;
 		end
 		
