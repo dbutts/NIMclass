@@ -242,12 +242,11 @@ methods
 			
 			% then space-time plot in first subplot unless 'xt-separable'
 			subplot( plotloc(1), plotloc(2), plotloc(3) )
-			if isfield( parsed_options, 'xt-separable' )
+			if isfield( parsed_options, 'xt-separable' ) || (dims(1) == 1)
 				subunit.display_spatial_filter( dims, modvarargin{:} );
 			else
 				k = reshape( subunit.get_filtK(), dims(1:2) );
-				xs = 1:dims(2);
-				imagesc( ts,xs, k, Kmax*[-1 1] )
+				imagesc( 1:dims(1),1:dims(2), k, Kmax*[-1 1] )
 				if isfield(parsed_options,'colormap')
 					colormap(parsed_options.colormap);
 				else
@@ -297,8 +296,12 @@ methods
 	%	    'single': plot single temporal function at best spatial position
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
+		if dims(1) == 1
+			warning( 'No temporal dimensions to plot.' )
+			return
+		end
+
 		[~,parsed_options] = NIM.parse_varargin( varargin );
-		assert(plotloc(3) <= prod(plotloc(1:2)),'Invalid plot location.')
 		if isfield(parsed_options,'color')
 			clr = parsed_options.color;
 		else
@@ -386,9 +389,11 @@ methods
 				[~,bestT] = max(std(k,1,2));
 				k = k(bestT,:);
 			end
-			plot( ts, k, clr, 'LineWidth',0.8 );
+			plot( k, clr, 'LineWidth',0.8 );
 			hold on
 			plot([1 dims(2)],[0 0],'k--')
+			L = max(k(:))-min(k(:));
+			axis([1 dims(2) min(k(:))+L*[-0.1 1.1]])
 		else
 			
 			% then 2-dimensional spatial filter

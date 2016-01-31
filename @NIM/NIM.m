@@ -773,7 +773,7 @@ methods
       
 		% PROCESS INPUTS
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin );
-		validate_parsed_options( parsed_options, {'gain_funs'} );
+		NIM.validate_parsed_options( parsed_options, {'gain_funs'} );
 		gain_funs = []; % default has no gain_funs
 		if isfield( parsed_options, 'gain_funs' )
 			gain_funs = parsed_options.gain_funs;
