@@ -46,7 +46,8 @@ methods
 	nim = fit_NLparams( nim, Robs, Xstims, varargin );            % fit parameters of (parametric) upstream NL functions
 	nim = fit_weights( nim, Robs, Xstims, varargin );             % fit linear weights on each subunit
 	nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );     % determine optimal regularization using cross-val data
-	[] = display_model_dab( nim, Robs, Xstims, varargin );            % display current model
+	[] = display_model( nim, Robs, Xstims, varargin );            % display current model
+	[] = display_model_dab( nim, Robs, Xstims, varargin );        % display current model
 	[] = display_model_jmm( nim, Robs, Xstims, varargin );        % display current model (original version)
 end
 methods (Static)
@@ -76,7 +77,6 @@ end
 %   function [LLs,LLnulls] = eval_model_reps( nim, RobsR, Xstims, varargin )
 %   function [filt_SE,hessMat] = compute_filter_SEs( nim, Robs, Xstims, varargin )
 % Display Methods:
-%   function [] = display_model( nim, varargin )
 %   function [] = display_spkNL( nim, G, varargin )
 %   function [] = display_spike_history( nim, varargin )
 % Hidden Methods:
@@ -838,178 +838,92 @@ methods
 	function [filt_SE,hessMat] = compute_filter_SEs( nim, Robs, Xstims, varargin )
 	% Usage: [filt_SE,hessMat] = compute_filter_SEs( nim, Robs, Xstims, <eval_inds>, varargin )
 	% Computes standard error estimates for the filter coefficients of a set of subunits, 
-    %           based on the outer-product of gradients estimator of the fisher info matrix
-    %                INPUTS:
-    %                   Robs: vector of observed data
-    %                   Xstims: cell array of stimuli
-    %                   <eval_inds>: optional vector of indices on which to evaluate the model
-    %                   optional flags:
-    %                       ('gain_funs',gain_funs): [TxK] matrix specifying gain at each timepoint for each subunit
-    %                       ('subs',sub_inds): index values of subunits to compute filter SEs for
-    %                OUTPUTS:
-    %                   filt_SE: cell array of standard error estimates of the filter coefs
-    %                   hessMat: estimate of the second derivative of the log-posterior
+	% based on the outer-product of gradients estimator of the fisher info matrix
+	%
+	% INPUTS:
+	%   Robs: vector of observed data
+	%   Xstims: cell array of stimuli
+	%   <eval_inds>: optional vector of indices on which to evaluate the model
+	%   optional flags:
+	%     'gain_funs': [TxK] matrix specifying gain at each timepoint for each subunit
+	%     'subs': index values of subunits to compute filter SEs for
+	%   OUTPUTS:
+	%     filt_SE: cell array of standard error estimates of the filter coefs
+	%     hessMat: estimate of the second derivative of the log-posterior
+   
+		Nsubs = length(nim.subunits); % number of subunits
+		NT = length(Robs); % number of time points
 
-        Nsubs = length(nim.subunits); %number of subunits
-        NT = length(Robs); %number of time points
-        eval_inds = nan; %this default means evaluate on all data
-        % PROCESS INPUTS
-        gain_funs = []; %default has no gain_funs
-        sub_inds = 1:Nsubs; %default is all subunits
-        j = 1;
-        while j <= length(varargin)
-            flag_name = varargin{j};
-            if ~ischar(flag_name)
-                eval_inds = flag_name;
-                j = j + 1;
-            else
-                switch lower(flag_name)
-                    case 'gain_funs'
-                        gain_funs = varargin{j+1};
-                        j = j + 2;
-                    case 'subs'
-                        sub_inds = varargin{j+1};
-                        j = j + 2;
-                        assert(all(ismember(sub_inds,1:Nsubs)),'invalid input for sub_inds');
+		% PROCESS INPUTS
+		defaults.eval_inds = nan; % this default means evaluate on all data
+    defaults.gain_funs = []; % default has no gain_funs 
+		defaults.subs = 1:Nsubs; % default is all subunits
+		[eval_inds,parsed_options] = NIM.parse_varargin( varargin, {}, defaults );
+		validate_parsed_options( parsed_options, {'subs','gain_funs'} );
+		sub_inds = parsed_options.subs;
+		
+		if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
+    
+		mod_weights = [nim.subunits(sub_inds).weight];    
+		mod_Xtargs = [nim.subunits(sub_inds).Xtarg];
 
-                    otherwise
-                        error('Invalid input flag');
-                end
-            end
-        end
-        if size(Robs,2) > size(Robs,1); Robs = Robs'; end; %make Robs a column vector
+		[~,pred_rate,mod_internals] = nim.eval_model( Robs, Xstims, eval_inds, 'gain_funs', parsed_options.gain_funs );
+		G = mod_internals.G + nim.spkNL.theta; % add in spkNL offset to generating signal
 
-        mod_weights = [nim.subunits(sub_inds).weight];
-        mod_Xtargs = [nim.subunits(sub_inds).Xtarg];
+		r_deriv = nim.apply_spkNL_deriv(G);  % derivative of spkNL
+		LL_deriv = nim.internal_LL_deriv( pred_rate, Robs ); % derivative of LL function
+		residual = r_deriv.*LL_deriv; % F'[]*r'[]
 
-        [~,pred_rate,mod_internals] = nim.eval_model(Robs,Xstims,eval_inds,'gain_funs',gain_funs);
-        G = mod_internals.G + nim.spkNL.theta; %add in spkNL offset to generating signal
+		filtKs = nim.get_filtKs( sub_inds ); % all filter coefs as cell array
+		filt_dims = cellfun(@(x) length(x), filtKs ); % number of coefs for each filter
 
-        r_deriv = nim.apply_spkNL_deriv(G);  %derivative of spkNL
-        LL_deriv = nim.internal_LL_deriv(pred_rate,Robs); %derivative of LL function
-        residual = r_deriv.*LL_deriv; %F'[]*r'[]
+		% Compute second derivative of log-posterior wrt L2 penalties
+		Tmats = nim.make_Tikhonov_matrices(); % generate regularization matrices
+		penHessMat = zeros( sum(filt_dims) ); % init hessian of penalty terms   
+		for ii = 1:length(Tmats) % loop over the derivative regularization matrices
+			cur_subs = find(mod_Xtargs == Tmats(ii).Xtarg); % set of subunits acting on the stimulus given by this Tmat
+			for jj = 1:length(cur_subs)
+				irange = sum(filt_dims(1:cur_subs(jj)-1)) + (1:filt_dims(cur_subs(jj))); % range of parameter indices corresponding to this subunits filter        
+				pen_hess = 2*Tmats.Tmat' * Tmats(ii).Tmat;
+				penHessMat(irange,irange) = penHessMat(irange,irange) + pen_hess*nim.get_reg_lambdas(Tmats(ii).type,'subs',sub_inds(cur_subs(jj)));      
+			end	
+		end
+		l2_lambdas = nim.get_reg_lambdas( 'l2', 'subs',sub_inds );
+		if any(l2_lambdas > 0) % now for straight L2 penalties
+			l2_subs = find(l2_lambdas > 0);
+			for ii = 1:length(l2_subs)     
+				irange = sum(filt_dims(1:l2_subs(ii)-1)) + (1:filt_dims(l2_subs(ii))); % range of parameter indices corresponding to this subunits filter        
+				pen_hess = 2*eye(length(irange));
+				penHessMat(irange,irange) = penHessMat(irange,irange) + l2_lambdas(l2_subs(ii))*pen_hess;      
+			end	
+		end
 
-        filtKs = nim.get_filtKs(sub_inds); %all filter coefs as cell array
-        filt_dims = cellfun(@(x) length(x),filtKs); %number of coefs for each filter
+		gradMat = zeros(NT,sum(filt_dims));
+		for ii = 1:length(sub_inds) % compute gradient of LL wrt all filter coefs
+			irange = sum(filt_dims(1:ii-1)) + (1:filt_dims(ii)); % range of parameter indices corresponding to this subunits filter
+			filt_fd_ii = nim.subunits(sub_inds(ii)).apply_NL_deriv(mod_internals.gint(:,sub_inds(ii))); % first derivative of ith subunits upstream NL wrt its input arg
+			gradMat(:,irange) = mod_weights(sub_inds(ii))*bsxfun(@times,Xstims{mod_Xtargs(ii)},filt_fd_ii.*residual); 
+		end
+		
+		hessMat = gradMat'*gradMat; % use outer product of gradients to estimate Fisher info matrix (ref: Greene W. Econometric Analysis 7th ed. 2011. Eqn 14-18
+		hessMat = hessMat + penHessMat; % add in penalty term    
+		if min(eig(hessMat)) < 0; warning( 'hessian not positive semi-definite' ); end; % make sure it's positive semi-def    
+		inv_hess = pinv(hessMat); % invert to get parameter covariance mat    
+		allK_SE = sqrt(diag(inv_hess)); % take sqrt of diagonal component as SE
 
-        %compute second derivative of log-posterior wrt L2 penalties
-        Tmats = nim.make_Tikhonov_matrices(); %generate regularization matrices
-        penHessMat = zeros(sum(filt_dims)); %init hessian of penalty terms
-        for ii = 1:length(Tmats) %loop over the derivative regularization matrices
-            cur_subs = find(mod_Xtargs == Tmats(ii).Xtarg); %set of subunits acting on the stimulus given by this Tmat
-            for jj = 1:length(cur_subs)
-                irange = sum(filt_dims(1:cur_subs(jj)-1)) + (1:filt_dims(cur_subs(jj))); %range of parameter indices corresponding to this subunits filter
-                pen_hess = 2*Tmats.Tmat' * Tmats(ii).Tmat;
-                penHessMat(irange,irange) = penHessMat(irange,irange) + pen_hess*nim.get_reg_lambdas(Tmats(ii).type,'subs',sub_inds(cur_subs(jj)));
-            end
-        end
-        l2_lambdas = nim.get_reg_lambdas('l2','subs',sub_inds);
-        if any(l2_lambdas > 0) %now for straight L2 penalties
-            l2_subs = find(l2_lambdas > 0);
-            for ii = 1:length(l2_subs)
-                irange = sum(filt_dims(1:l2_subs(ii)-1)) + (1:filt_dims(l2_subs(ii))); %range of parameter indices corresponding to this subunits filter
-                pen_hess = 2*eye(length(irange));
-                penHessMat(irange,irange) = penHessMat(irange,irange) + l2_lambdas(l2_subs(ii))*pen_hess;
-            end
-        end
-
-        gradMat = zeros(NT,sum(filt_dims));
-        for ii = 1:length(sub_inds) %compute gradient of LL wrt all filter coefs
-            irange = sum(filt_dims(1:ii-1)) + (1:filt_dims(ii)); %range of parameter indices corresponding to this subunits filter
-            filt_fd_ii = nim.subunits(sub_inds(ii)).apply_NL_deriv(mod_internals.gint(:,sub_inds(ii))); %first derivative of ith subunits upstream NL wrt its input arg
-            gradMat(:,irange) = mod_weights(sub_inds(ii))*bsxfun(@times,Xstims{mod_Xtargs(ii)},filt_fd_ii.*residual); 
-        end
-
-        hessMat = gradMat'*gradMat; %use outer product of gradients to estimate Fisher info matrix (ref: Greene W. Econometric Analysis 7th ed. 2011. Eqn 14-18
-        hessMat = hessMat + penHessMat; %add in penalty term
-        if min(eig(hessMat)) < 0; warning('hessian not positive semi-definite'); end; %make sure it's positive semi-def
-        inv_hess = pinv(hessMat); %invert to get parameter covariance mat
-        allK_SE = sqrt(diag(inv_hess)); %take sqrt of diagonal component as SE
-
-        %parse into cell array
-        filt_SE = cell(length(sub_inds),1);
-        for ii = 1:length(sub_inds) 
-            irange = sum(filt_dims(1:ii-1)) + (1:filt_dims(ii));
-            filt_SE{ii} = allK_SE(irange);
-        end
-    end
-
+		% Parse into cell array
+		filt_SE = cell(length(sub_inds),1);
+		for ii = 1:length(sub_inds)       
+			irange = sum(filt_dims(1:ii-1)) + (1:filt_dims(ii));    
+			filt_SE{ii} = allK_SE(irange);    
+		end
+	end
+		
 end
 
 %% ********************** Display Methods *********************************
 methods
 
-	function [] = display_model( nim, varargin )
-	% Usage: [] = nim.display_model( varargin )
-	% Displays all parts of model as single plot (with multiple subplots)
-	%
-	% INPUTS:  
-	%  Optional flags:
-	%    'Xstims': to enter Xstims for calculation of G-distributions
-	%    'Robs': to enter Robs, as required for G-distributions where there is a spike-history term
-	%    'mod_outs': output of eval_model that gives required internal parameters
-	%    'colormap': to specify colormap for any image plots in filter displays
-	
-		[~,parsed_options,modvarargin] = NIM.parse_varargin( varargin, {'Xstims','Robs','mod_outs'} );
-		Nmods = length(nim.subunits);
-		mod_outs = [];
-		
-		if isfield( parsed_options, 'Xstims' )
-			if iscell(parsed_options.Xstims)
-				Xstims = parsed_options.Xstims;
-			else
-				Xstims{1} = parsed_options.Xstims;
-			end			
-			Robs = [];
-			if isfield( parsed_options, 'Robs' )  % Robs only makes sense to process when other 
-				Robs = parsed_options.Robs;
-			end
-			[~,~,mod_outs] = nim.eval_model( Robs, Xstims );
-		elseif isfield( parsed_options, 'mod_outs' )
-			mod_outs = parsed_options.mod_outs;
-		end
-	
-		extra_plots = [(nim.spk_hist.spkhstlen > 0) ~isempty(mod_outs)]; % will be spike-history or spkNL plot?
-		
-		if sum(extra_plots) == 0
-			Nrows = Nmods;
-			Ncols = 3;
-		else
-			% Then need extra column (and possibly extra row)
-			Nrows = max([Nmods sum(extra_plots)]);
-			Ncols = 4;
-		end
-		
-		figure;
-		% Plot Subunit info
-		for nn = 1:Nmods
-			nim.subunits(nn).display_filter( nim.stim_params(nim.subunits(nn).Xtarg).dims, [Nrows Ncols (nn-1)*Ncols+1], modvarargin );
-			subplot( Nrows, Ncols, (nn-1)*Ncols+3 );
-			if isempty(mod_outs)
-				nim.subunits(nn).display_NL();
-			else
-				nim.subunits(nn).display_NL( mod_outs.gints(:,nn) );
-			end
-		end
-		
-		% Plot spkNL
-		if sum(extra_plots) == 0
-			return
-		end
-		
-		subplot( Nrows, Ncols, Ncols );
-		if extra_plots(2) > 0
-			nim.display_spkNL( mod_outs.G );
-			title( 'Spk NL' )
-			if extra_plots(1) > 0
-				subplot( Nrows, Ncols, 2*Ncols );
-			end
-		end
-		if extra_plots(1) > 0
-			nim.display_spike_history();
-		end
-	end
-	
 	function [] = display_spkNL( nim, varargin )
 	% Usage: [] = nim.display_spikingNL( G, varargin )
 	%
