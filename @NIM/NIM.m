@@ -1473,10 +1473,13 @@ methods (Static, Hidden)
 	% OUTPUTS:
 	%   arevalid: Boolean: true if all fields in parsed_struct are on the valid_list
 	
+		arevalid = 1;
+		if isempty(parsed_struct)
+			return
+		end
 		parsed_options = fields(parsed_struct);
 		invalids = find(ismember(parsed_options, valid_list) == 0);
 		if isempty(invalids)
-			arevalid = 1;
 			return
 		end
 		
