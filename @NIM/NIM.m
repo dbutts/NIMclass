@@ -714,7 +714,7 @@ methods
 				if std(gint(:,imod)) == 0  % subunit with constant output
 					TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,parsed_inputs.n_bfs); % do something sensible
 				else
-					TBx = NIM.my_prctile( gint(:,imod), linspace(parsed_inputs.edge_p,100-parsed_inputs.edge_p,parsed_inputs.n_bfs) ); % equipopulated
+					TBx = NIM.my_prctile( gint(:,imod), linspace(parsed_inputs.edge_p,100-parsed_inputs.edge_p,parsed_inputs.n_bfs) )'; % equipopulated
 				end
 			end
 			% Set nearest tent basis to 0 so we can keep it fixed during fitting
