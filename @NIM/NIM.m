@@ -669,6 +669,7 @@ methods
     
 		Nsubs = length(nim.subunits);
 
+		% set defaults
 		defaults.subs = 1:Nsubs; % defualt to fitting all subunits 
 		defaults.NLmon = 1; % default monotonic increasing TB-coefficients
 		defaults.edge_p = 0.05; % relative to the generating distribution (pth percentile) where to put the outermost tent bases
@@ -677,10 +678,13 @@ methods
 		defaults.lambda_nld2 = 0; % default no smoothing on TB coefs
 		
 		[~,parsed_inputs] = NIM.parse_varargin( varargin, {}, defaults );
+		
+		% set flags and error check
 		subs = parsed_inputs.subs;
-
+		
 		% Store NL tent-basis parameters
-		tb_params = struct( 'edge_p',parsed_inputs.edge_p, 'n_bfs',parsed_inputs.n_bfs, 'space_type',parsed_inputs.space_type );
+		tb_params = struct( 'NLmon', parsed_inputs.NLmon, 'edge_p',parsed_inputs.edge_p, ...
+							'n_bfs',parsed_inputs.n_bfs, 'space_type',parsed_inputs.space_type );
 		for ii = parsed_inputs.subs % load the TB param struct into each subunit we're making nonpar
 			nim.subunits(ii).NLnonpar.TBparams = tb_params;
 		end
@@ -701,14 +705,14 @@ methods
 					left_edge = right_edge - 0.5;
 					right_edge = right_edge + 0.5;  
 				end
-				spacing = (right_edge - left_edge)/n_bfs;
+				spacing = (right_edge - left_edge)/parsed_inputs.n_bfs;
 				% Adjust the edge locations so one of the bins lands at 0
 				left_edge = ceil(left_edge/spacing)*spacing;
 				right_edge = floor(right_edge/spacing)*spacing;
 				TBx = linspace( left_edge, right_edge, parsed_inputs.n_bfs ); % equispacing
 			elseif strcmp(parsed_inputs.space_type,'equipop') % for equi-populated binning
 				if std(gint(:,imod)) == 0  % subunit with constant output
-					TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,n_bfs); % do something sensible
+					TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,parsed_inputs.n_bfs); % do something sensible
 				else
 					TBx = NIM.my_prctile( gint(:,imod), linspace(parsed_inputs.edge_p,100-parsed_inputs.edge_p,parsed_inputs.n_bfs) ); % equipopulated
 				end
@@ -739,8 +743,7 @@ methods
 			nim.subunits(imod).NLoffset = 0;
 			nim.subunits(imod).NLnonpar.TBy = TBy;
 			nim.subunits(imod).NLnonpar.TBx = TBx;
-			nim.subunits(imod).reg_lambdas.nld2 = lambda_nld2;
-			nim.subunits(imod).NLnonpar.TBparams.NLmon = NLmon;
+			nim.subunits(imod).reg_lambdas.nld2 = parsed_inputs.lambda_nld2;
 			nim.subunits(imod).TBy_deriv = nim.subunits(imod).get_TB_derivative(); % calculate derivative of Tent-basis coeffics
 		end	
 	end
