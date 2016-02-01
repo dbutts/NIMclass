@@ -297,7 +297,7 @@ methods
 	
 		assert((nargin > 1) && ~isempty(dims), 'Must enter filter dimensions.' )
 		if dims(1) == 1
-			warning( 'No temporal dimensions to plot.' )
+			%warning( 'No temporal dimensions to plot.' )
 			return
 		end
 
