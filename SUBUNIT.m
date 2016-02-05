@@ -137,8 +137,7 @@ methods
 				end		
 		end
 	end
-	
-	
+		
 	function sub_deriv = apply_NL_deriv(subunit,gen_signal)
 	% Usage: sub_deriv = apply_NL_deriv( subunit, gen_signal )
 	%
@@ -174,8 +173,7 @@ methods
 				end
 		end
 	end
-	
-	
+		
 	function NLgrad = NL_grad_param( subunit, x )
 	% Usage: NLgrad = NL_grad_param( subunit, x )
 	%
@@ -554,8 +552,8 @@ end
 %% STATIC METHODS   
 methods (Static)
 
-	function tent_out = get_tentbasis_output(gin, tent_cent, tent_edges )
-	% Usage: tent_out = get_tentbasis_output(gin, tent_cent, tent_edges )          
+	function tent_out = get_tentbasis_output( gin, tent_cent, tent_edges )
+	% Usage: tent_out = get_tentbasis_output( gin, tent_cent, tent_edges )          
 	%          
 	% Takes an input vector and passes it through the tent basis function
 	% specified by center location tent_cent and the 2-element vector tent_edges = [left_edge right_edge]

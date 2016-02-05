@@ -1083,29 +1083,34 @@ methods (Hidden)
 	% Usage: rate = apply_spkNL( nim, gen_signal )
 	% Applies the spkNL function to the input gen_signal. 
 	% NOTE: the offset term should already be added to gen_signal
-    
-        switch nim.spkNL.type
-            case 'lin' %F[x;beta] = beta*x
-                rate = gen_signal*nim.spkNL.params(1);
-            case 'rectpow' %F[x; beta, gamma] = (beta*x)^gamma iff x > 0; else 0
-                rate = (gen_signal*nim.spkNL.params(1)).^nim.spkNL.params(2);
-                rate(gen_signal < 0) = 0;
-            case 'exp' %F[x; beta] = exp(beta*x)
-                rate = exp(gen_signal*nim.spkNL.params(1));
-            case 'softplus' %F[x; beta, alpha] = alpha*log(1+exp(beta*x))
-                max_g = 50; %to prevent numerical overflow
-                gint = gen_signal*nim.spkNL.params(1);
-                rate = nim.spkNL.params(2)*log(1 + exp(gint));
-                rate(gint > max_g) = nim.spkNL.params(2)*gint(gint > max_g);
-            case 'logistic'
-                rate = 1./(1 + exp(-gen_signal*nim.spkNL.params(1)));
-        end
-        if ismember(nim.noise_dist,{'poisson','bernoulli'}) %cant allow rates == 0 because LL is undefined
-           rate(rate < nim.min_pred_rate) = nim.min_pred_rate; 
-        end
-        if strcmp(nim.noise_dist,'bernoulli') %cant allow rates == 1 because LL is undefined
-           rate(rate > (1 - nim.min_pred_rate)) = 1 - nim.min_pred_rate; 
-				end			
+          
+		switch nim.spkNL.type
+			case 'lin' %F[x;beta] = beta*x
+				rate = gen_signal*nim.spkNL.params(1);
+				
+			case 'rectpow' %F[x; beta, gamma] = (beta*x)^gamma iff x > 0; else 0
+				rate = (gen_signal*nim.spkNL.params(1)).^nim.spkNL.params(2);
+				rate(gen_signal < 0) = 0;
+				
+			case 'exp' %F[x; beta] = exp(beta*x)
+				rate = exp(gen_signal*nim.spkNL.params(1));
+				
+			case 'softplus' %F[x; beta, alpha] = alpha*log(1+exp(beta*x))
+				max_g = 50; %to prevent numerical overflow
+				gint = gen_signal*nim.spkNL.params(1);
+				rate = nim.spkNL.params(2)*log(1 + exp(gint));
+				rate(gint > max_g) = nim.spkNL.params(2)*gint(gint > max_g);
+				
+			case 'logistic'
+				rate = 1./(1 + exp(-gen_signal*nim.spkNL.params(1))); 
+				
+		end
+		if ismember(nim.noise_dist,{'poisson','bernoulli'}) %cant allow rates == 0 because LL is undefined
+			rate(rate < nim.min_pred_rate) = nim.min_pred_rate; 
+		end
+		if strcmp(nim.noise_dist,'bernoulli') %cant allow rates == 1 because LL is undefined    
+			rate(rate > (1 - nim.min_pred_rate)) = 1 - nim.min_pred_rate; 	
+		end			
 	end
 
 	function rate_deriv = apply_spkNL_deriv( nim, gen_signal, thresholded_inds )
@@ -1114,63 +1119,69 @@ methods (Hidden)
 	% Again, gen_signal should have the offset theta already added in.
     
 		if nargin < 3
-			thresholded_inds = []; %this just specifies the index values where we've had to apply thresholding on the predicted rate to avoid Nan LLs    
+			thresholded_inds = []; % this just specifies the index values where we've had to apply thresholding on the predicted rate to avoid Nan LLs    
 		end
-        switch nim.spkNL.type
-            case 'lin' %F'[x; beta] = beta;
-                rate_deriv = nim.spkNL.params(1)*ones(size(gen_signal));
-            case 'rectpow' %F'[x; beta, gamma] = gamma*beta^gamma*x^(gamma-1) iff x > 0; else 0
-                rate_deriv = nim.spkNL.params(2)*nim.spkNL.params(1)^nim.spkNL.params(2)*...
-                    gen_signal.^(nim.spkNL.params(2)-1);
-                rate_deriv(gen_signal < 0) = 0;
-            case 'exp' %F'[x; beta] = beta*exp(beta*x)
-                rate_deriv = nim.spkNL.params(1)*exp(nim.spkNL.params(1)*gen_signal);
-            case 'softplus' %F[x; beta, alpha] = alpha*beta*exp(beta*x)/(1+exp(beta*x))
-                max_g = 50; %to prevent numerical overflow
-                gint = gen_signal*nim.spkNL.params(1);
-                rate_deriv = nim.spkNL.params(1)*nim.spkNL.params(2)*exp(gint)./(1 + exp(gint));
-                rate_deriv(gint > max_g) = nim.spkNL.params(1)*nim.spkNL.params(2); %e^x/(1+e^x) => 1 for large x
-            case 'logistic'
-                rate_deriv = nim.spkNL.params(1)*exp(-gen_signal*nim.spkNL.params(1))./...
-                    (1 + exp(-gen_signal*nim.spkNL.params(1))).^2; %e^(-x)/(1+e^(-x))^2
-        end
-        if ismember(nim.noise_dist,{'poisson','bernoulli'}) %cant allow rates == 0 because LL is undefined
-            rate_deriv(thresholded_inds) = 0; %if thresholding the rate to avoid undefined LLs, set deriv to 0 at those points
-        end
+		switch nim.spkNL.type
+       
+			case 'lin' % F'[x; beta] = beta;
+				rate_deriv = nim.spkNL.params(1)*ones(size(gen_signal));
+        
+			case 'rectpow' % F'[x; beta, gamma] = gamma*beta^gamma*x^(gamma-1) iff x > 0; else 0
+				rate_deriv = nim.spkNL.params(2)*nim.spkNL.params(1)^nim.spkNL.params(2)*...
+						gen_signal.^(nim.spkNL.params(2)-1);
+				rate_deriv(gen_signal < 0) = 0;
+				
+			case 'exp' % F'[x; beta] = beta*exp(beta*x)
+				rate_deriv = nim.spkNL.params(1)*exp(nim.spkNL.params(1)*gen_signal);
+				
+			case 'softplus' % F[x; beta, alpha] = alpha*beta*exp(beta*x)/(1+exp(beta*x))
+				max_g = 50; % to prevent numerical overflow
+				gint = gen_signal*nim.spkNL.params(1);
+				rate_deriv = nim.spkNL.params(1)*nim.spkNL.params(2)*exp(gint)./(1 + exp(gint));
+				rate_deriv(gint > max_g) = nim.spkNL.params(1)*nim.spkNL.params(2); % e^x/(1+e^x) => 1 for large x
+				
+			case 'logistic'
+				rate_deriv = nim.spkNL.params(1)*exp(-gen_signal*nim.spkNL.params(1))./...
+						(1 + exp(-gen_signal*nim.spkNL.params(1))).^2; % e^(-x)/(1+e^(-x))^2
+		end
+		if ismember(nim.noise_dist,{'poisson','bernoulli'}) % cant allow rates == 0 because LL is undefined
+			rate_deriv(thresholded_inds) = 0; % if thresholding the rate to avoid undefined LLs, set deriv to 0 at those points  
+		end
 	end
 
 	function rate_grad = spkNL_param_grad( nim, params, x )
-    % computes the gradient of the spkNL function with respect to its 
-    % parameters (subroutine for optimizing the spkNL params)
+	% Usage: rate_grad = nim.spkNL_param_grad( params, x )
+	% Computes the gradient of the spkNL function with respect to its 
+	% parameters (subroutine for optimizing the spkNL params)
 
-        rate_grad = zeros(length(x),length(params));
-        switch nim.spkNL.type
-            case 'lin' %F[x;beta,theta] = beta*(x+theta)
-                rate_grad(:,1) = x; %dr/dbeta = x
-                rate_grad(:,2) = ones(size(x)); %dr/dtheta = 1
-            case 'rectpow' %F[x;beta,gamma,theta] = (beta*(x+theta))^gamma iff (x + theta) > 0 
-                temp =params(1)*(x + params(3)); %(beta*x+theta)
-                temp(temp < 0) = 0; %threshold at 0
-                rate_grad(:,1) = params(2)*temp.^(params(2)-1).*(x + params(3)); %dr/dbeta 
-                rate_grad(:,2) = temp.^params(2).*log(temp); %dr/dgamma
-                rate_grad(temp == 0,2) = 0; %define this as 0
-                rate_grad(:,3) = params(2)*temp.^(params(2)-1); %dr/dtheta
-            case 'exp' %F[x;beta, theta] = exp(beta*(x+theta))
-                temp = exp(params(1)*(x + params(end)));
-                rate_grad(:,1) = (x + params(end)).*temp; %dr/dbeta = (x+theta)*exp(beta*(x+theta))
-                rate_grad(:,2) = params(1).*temp; %dr/dtheta = beta*exp(beta*(x+theta))
-            case 'softplus' %F[x;beta, alpha, theta] = alpha*log(1+exp(beta*(x+theta)))
-                temp = params(2)*exp(params(1)*(x + params(3)))./(1 + exp(params(1)*(x + params(3)))); %alpha*exp(beta*(x+theta))/(1 + exp(beta*(x+theta)))
-                rate_grad(:,1) = temp.*(x + params(3)); %dr/dbeta = temp*(x + theta)
-                rate_grad(:,2) = log(1 + exp(params(1)*(x + params(3)))); %dr/dalpha = log[]
-                rate_grad(:,3) = temp.*params(1); %dr/dtheta = temp*beta
-            case 'logistic' %F[x;beta, theta] = 1/(1 + exp(-beta*(x+theta)))
-                temp = exp(-params(1)*(x+params(2)))./(1 + exp(-params(1)*(x + params(2)))).^2; %exp(-beta*(x+theta))/(1+exp(-beta(x+theta)))^2
-                rate_grad(:,1) = temp.*(x + params(2)); %dr/dbeta = temp*(x+theta)
-                rate_grad(:,2) = temp.*params(1); %dr/dtheta = temp*beta
-            otherwise
-                error('unsupported spkNL type');
-        end            
+		rate_grad = zeros(length(x),length(params));
+		switch nim.spkNL.type      
+			case 'lin' % F[x;beta,theta] = beta*(x+theta)
+				rate_grad(:,1) = x; %dr/dbeta = x
+				rate_grad(:,2) = ones(size(x)); %dr/dtheta = 1
+			case 'rectpow' % F[x;beta,gamma,theta] = (beta*(x+theta))^gamma iff (x + theta) > 0 
+				temp = params(1)*(x + params(3)); % (beta*x+theta)
+				temp(temp < 0) = 0; % threshold at 0
+				rate_grad(:,1) = params(2)*temp.^(params(2)-1).*(x + params(3)); % dr/dbeta 
+				rate_grad(:,2) = temp.^params(2).*log(temp); % dr/dgamma
+				rate_grad(temp == 0,2) = 0; % define this as 0
+				rate_grad(:,3) = params(2)*temp.^(params(2)-1); % dr/dtheta
+			case 'exp' % F[x;beta, theta] = exp(beta*(x+theta))
+				temp = exp(params(1)*(x + params(end)));
+				rate_grad(:,1) = (x + params(end)).*temp; % dr/dbeta = (x+theta)*exp(beta*(x+theta))
+				rate_grad(:,2) = params(1).*temp; % dr/dtheta = beta*exp(beta*(x+theta))
+			case 'softplus' % F[x;beta, alpha, theta] = alpha*log(1+exp(beta*(x+theta)))
+				temp = params(2)*exp(params(1)*(x + params(3)))./(1 + exp(params(1)*(x + params(3)))); % alpha*exp(beta*(x+theta))/(1 + exp(beta*(x+theta)))
+				rate_grad(:,1) = temp.*(x + params(3)); % dr/dbeta = temp*(x + theta)
+				rate_grad(:,2) = log(1 + exp(params(1)*(x + params(3)))); % dr/dalpha = log[]
+				rate_grad(:,3) = temp.*params(1); % dr/dtheta = temp*beta
+			case 'logistic' % F[x;beta, theta] = 1/(1 + exp(-beta*(x+theta)))
+				temp = exp(-params(1)*(x+params(2)))./(1 + exp(-params(1)*(x + params(2)))).^2; % exp(-beta*(x+theta))/(1+exp(-beta(x+theta)))^2
+				rate_grad(:,1) = temp.*(x + params(2)); % dr/dbeta = temp*(x+theta)
+				rate_grad(:,2) = temp.*params(1); % dr/dtheta = temp*beta
+			otherwise
+				error('unsupported spkNL type');    
+		end            
 	end
 	
 	function Tmats = make_Tikhonov_matrices( nim )

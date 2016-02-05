@@ -1,6 +1,7 @@
 function nim = fit_filters(nim, Robs, Xstims, varargin)
 % nim = nim.fit_filters(Robs, Xstims, <train_inds>, varargin)
 % estimate filters of NIM model.
+%
 % INPUTS:
 %   Robs: vector of response observations (e.g. spike counts)
 %   Xstims: cell array of stimuli
@@ -151,8 +152,8 @@ end
 Tmats = nim.make_Tikhonov_matrices();
 
 fit_opts = struct( 'fit_spk_hist',fit_spk_hist, 'fit_subs',fit_subs, 'fit_offsets',fit_offsets ); % put any additional fitting options into this struct
-% the function we want to optimize
-opt_fun = @(K) internal_LL_filters(nim,K,Robs,Xstims,Xspkhst,nontarg_g,gain_funs,Tmats,fit_opts);
+% The function we want to optimize
+opt_fun = @(K) internal_LL_filters( nim,K,Robs,Xstims,Xspkhst,nontarg_g,gain_funs,Tmats,fit_opts );
 
 % Determine which optimizer were going to use
 if max(lambda_L1) > 0
@@ -249,54 +250,54 @@ G = theta + nontarg_g; % initialize overall generating function G with the offse
 
 NKtot = 0;  %init filter coef counter
 for ii = 1:Nfit_subs %loop over subunits, get filter coefs and their indices within the parameter vector
-    filtLen(ii) = length(nim.subunits(fit_subs(ii)).filtK); % length of filter
-    param_inds{ii} = NKtot + (1:filtLen(ii)); %set of param indices associated with this subunit's filters
-    filtKs{ii} = params(param_inds{ii}); %store filter coefs
-    NKtot = NKtot + filtLen(ii); %inc counter
+	filtLen(ii) = length(nim.subunits(fit_subs(ii)).filtK); % length of filter
+	param_inds{ii} = NKtot + (1:filtLen(ii)); %set of param indices associated with this subunit's filters
+	filtKs{ii} = params(param_inds{ii}); %store filter coefs
+	NKtot = NKtot + filtLen(ii); %inc counter
 end
 sub_offsets = [nim.subunits(fit_subs).NLoffset];%default offsets to whatever they're set at
 offset_inds = NKtot + (1:sum(fit_offsets)); %indices within parameter vector of offset terms were fitting
 sub_offsets(fit_offsets) = params(offset_inds); %if were fitting, overwrite these values with current params
 
 if ~isempty(un_Xtargs)
-    for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
-        cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
-        gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
-    end
-    gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets
+	for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
+		cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
+		gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
+	end
+	gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets
 end
 
 use_batch_calc = false;
 fgint = gint; %init subunit outputs by filter outputs
 for ii = 1:length(unique_NL_types) %loop over unique subunit NL types and apply NLs to gint in batch
-    cur_subs = find(strcmp(mod_NL_types,unique_NL_types{ii})); %set of subs with this NL type
-    if ~strcmp(unique_NL_types{ii},'lin') %if its a linear subunit we dont have to do anything
-        NLparam_mat = cat(1,nim.subunits(fit_subs(cur_subs)).NLparams); %matrix of upstream NL parameters
-        if isempty(NLparam_mat) || (length(cur_subs) > 1 && max(max(abs(diff(NLparam_mat)))) == 0) 
-            use_batch_calc = true; %if there are no NLparams, or if all subunits have the same NLparams, use batch calc
-        end
-        if strcmp(unique_NL_types{ii},'nonpar') || ~use_batch_calc %if were using nonpar NLs or parametric NLs with unique parameters, need to apply NLs individually
-            for jj = 1:length(cur_subs) %for TB NLs need to apply each subunit's NL individually
-                fgint(:,cur_subs(jj)) = nim.subunits(fit_subs(cur_subs(jj))).apply_NL(gint(:,cur_subs(jj)));
-            end
-        else %apply upstream NL in batch to all subunits in current set
-            fgint(:,cur_subs) = nim.subunits(fit_subs(cur_subs(1))).apply_NL(gint(:,cur_subs)); %apply upstream NL to all subunits of this type
-        end
-    end
+	cur_subs = find(strcmp(mod_NL_types,unique_NL_types{ii})); %set of subs with this NL type
+	if ~strcmp(unique_NL_types{ii},'lin') %if its a linear subunit we dont have to do anything
+		NLparam_mat = cat(1,nim.subunits(fit_subs(cur_subs)).NLparams); %matrix of upstream NL parameters
+		if isempty(NLparam_mat) || (length(cur_subs) > 1 && max(max(abs(diff(NLparam_mat)))) == 0)     
+			use_batch_calc = true; %if there are no NLparams, or if all subunits have the same NLparams, use batch calc  
+		end
+		if strcmp(unique_NL_types{ii},'nonpar') || ~use_batch_calc % if were using nonpar NLs or parametric NLs with unique parameters, need to apply NLs individually
+			for jj = 1:length(cur_subs) % for TB NLs need to apply each subunit's NL individually
+				fgint(:,cur_subs(jj)) = nim.subunits(fit_subs(cur_subs(jj))).apply_NL(gint(:,cur_subs(jj)));
+			end
+		else % apply upstream NL in batch to all subunits in current set
+			fgint(:,cur_subs) = nim.subunits(fit_subs(cur_subs(1))).apply_NL(gint(:,cur_subs)); % apply upstream NL to all subunits of this type
+		end	
+	end
 end
 
 % Multiply by weight (and multiplier, if appl) and add to generating function
 if ~isempty(fit_subs)
-    if isempty(gain_funs)
-        G = G + fgint*mod_weights;
-    else
-        G = G + (fgint.*gain_funs(:,fit_subs))*mod_weights;
-    end
+	if isempty(gain_funs)
+		G = G + fgint*mod_weights;
+	else
+		G = G + (fgint.*gain_funs(:,fit_subs))*mod_weights;  
+	end
 end
 
 % Add contribution from spike history filter
 if fit_opts.fit_spk_hist
-    G = G + Xspkhst*params(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen));
+	G = G + Xspkhst*params(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen));
 end
 
 pred_rate = nim.apply_spkNL(G);
@@ -305,71 +306,72 @@ pred_rate = nim.apply_spkNL(G);
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G,pred_rate <= nim.min_pred_rate);
 
-penLLgrad = zeros(length(params),1); %initialize LL gradient
-penLLgrad(end) = sum(residual);      %Calculate derivatives with respect to constant term (theta)
+penLLgrad = zeros(length(params),1); % initialize LL gradient
+penLLgrad(end) = sum(residual);      % calculate derivatives with respect to constant term (theta)
 
 % Calculate derivative with respect to spk history filter
 if fit_opts.fit_spk_hist
-    penLLgrad(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
+	penLLgrad(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
 end
 
-for ii = 1:length(un_Xtargs) %loop over unique Xfit_subs and compute LL grad wrt stim filters
-    cur_sub_inds = find(Xtarg_set == un_Xtargs(ii)); %set of subunits with this Xtarget
-    cur_NL_types = mod_NL_types(cur_sub_inds); %NL types of current subs
-    cur_unique_NL_types = unique(cur_NL_types); %set of unique NL types
-    subs_with_offsets = find(fit_offsets(cur_sub_inds)); %whether were fitting offset term for each of theses subunits
-    cur_offset_inds = find(ismember(find(fit_offsets),cur_sub_inds)); %index values within the set of offset parameter indices of these subs
-    if length(cur_sub_inds) == 1 && strcmp(cur_unique_NL_types,'lin') %if there's only a single linear subunit, this is a faster calc
-        if isempty(gain_funs)
-            penLLgrad(param_inds{cur_sub_inds}) = residual'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
-        else
-            penLLgrad(param_inds{cur_sub_inds}) = (gain_funs(:,cur_sub_inds).*residual)'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
-        end
-    else %otherwise, compute a matrix of upstream NL derivatives fpg
-        fpg = ones(length(residual),length(cur_sub_inds)); %initialize to linear NL derivative (all ones)
-        for jj = 1:length(cur_unique_NL_types) %loop over unique NL types
-            cur_sub_subinds = find(strcmp(cur_NL_types,cur_unique_NL_types{jj})); %indices of current subset of subunits
-            if strcmp(cur_unique_NL_types{jj},'nonpar') || ~use_batch_calc
-                for kk = 1:length(cur_sub_subinds) %if nonpar, need to apply each NL derivative individually
-                    fpg(:,cur_sub_subinds(kk)) = nim.subunits(fit_subs(cur_sub_inds(cur_sub_subinds(kk)))).apply_NL_deriv(gint(:,cur_sub_inds(cur_sub_subinds(kk))));
-                end
-            else %otherwise we can apply the NL to all subunits at once
-                fpg(:,cur_sub_subinds) = nim.subunits(fit_subs(cur_sub_inds(cur_sub_subinds(1)))).apply_NL_deriv(gint(:,cur_sub_inds(cur_sub_subinds)));
-            end
-        end
-        target_params = cat(2,param_inds{cur_sub_inds}); %indices of filter coefs for current set of targeted subunits
-        %LL grad is residual * f'(.) *X *w, computed in parallel for all subunits targeting this Xtarg
-        if isempty(gain_funs)
-            penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg,residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
-        else
-            penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,fit_subs(cur_sub_inds)),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
-        end
-        if ~isempty(cur_offset_inds)
-            penLLgrad(offset_inds(cur_offset_inds)) = (fpg(:,subs_with_offsets)'*residual).*mod_weights(cur_sub_inds(subs_with_offsets));
-        end
-    end
+for ii = 1:length(un_Xtargs) % loop over unique Xfit_subs and compute LL grad wrt stim filters
+	cur_sub_inds = find(Xtarg_set == un_Xtargs(ii)); % set of subunits with this Xtarget
+	cur_NL_types = mod_NL_types(cur_sub_inds); % NL types of current subs
+	cur_unique_NL_types = unique(cur_NL_types); % set of unique NL types
+	subs_with_offsets = find(fit_offsets(cur_sub_inds)); % whether were fitting offset term for each of theses subunits
+	cur_offset_inds = find(ismember(find(fit_offsets),cur_sub_inds)); % index values within the set of offset parameter indices of these subs
+	if length(cur_sub_inds) == 1 && strcmp(cur_unique_NL_types,'lin') % if there's only a single linear subunit, this is a faster calc
+		if isempty(gain_funs)
+			penLLgrad(param_inds{cur_sub_inds}) = residual'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;
+		else
+			penLLgrad(param_inds{cur_sub_inds}) = (gain_funs(:,cur_sub_inds).*residual)'*Xstims{un_Xtargs(ii)} * nim.subunits(cur_sub_inds).weight;    
+		end
+		
+	else % otherwise, compute a matrix of upstream NL derivatives fpg
+		fpg = ones(length(residual),length(cur_sub_inds)); % initialize to linear NL derivative (all ones)
+		for jj = 1:length(cur_unique_NL_types) % loop over unique NL types
+			cur_sub_subinds = find(strcmp(cur_NL_types,cur_unique_NL_types{jj})); % indices of current subset of subunits
+			if strcmp(cur_unique_NL_types{jj},'nonpar') || ~use_batch_calc
+				for kk = 1:length(cur_sub_subinds) % if nonpar, need to apply each NL derivative individually
+					fpg(:,cur_sub_subinds(kk)) = nim.subunits(fit_subs(cur_sub_inds(cur_sub_subinds(kk)))).apply_NL_deriv(gint(:,cur_sub_inds(cur_sub_subinds(kk))));
+				end
+			else % otherwise we can apply the NL to all subunits at once
+				fpg(:,cur_sub_subinds) = nim.subunits(fit_subs(cur_sub_inds(cur_sub_subinds(1)))).apply_NL_deriv(gint(:,cur_sub_inds(cur_sub_subinds)));
+			end
+		end
+		target_params = cat(2,param_inds{cur_sub_inds}); %indices of filter coefs for current set of targeted subunits
+		% LL grad is residual * f'(.) *X *w, computed in parallel for all subunits targeting this Xtarg
+		if isempty(gain_funs)
+			penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg,residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
+		else
+			penLLgrad(target_params) = bsxfun(@times,(bsxfun(@times,fpg.*gain_funs(:,fit_subs(cur_sub_inds)),residual)'*Xstims{un_Xtargs(ii)}),mod_weights(cur_sub_inds))';
+		end
+		if ~isempty(cur_offset_inds)
+			penLLgrad(offset_inds(cur_offset_inds)) = (fpg(:,subs_with_offsets)'*residual).*mod_weights(cur_sub_inds(subs_with_offsets));
+		end		
+	end
 end
 
 net_penalties = zeros(size(fit_subs));
 net_pen_grads = zeros(length(params),1);
-for ii = 1:length(Tmats) %loop over the derivative regularization matrices
-    cur_subs = find([nim.subunits(fit_subs).Xtarg] == Tmats(ii).Xtarg); %set of subunits acting on the stimulus given by this Tmat
-    if ~isempty(cur_subs)
-    penalties = sum((Tmats(ii).Tmat * cat(2,filtKs{cur_subs})).^2);
-    pen_grads = 2*(Tmats(ii).Tmat' * Tmats(ii).Tmat * cat(2,filtKs{cur_subs}));
-    cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'subs',fit_subs(cur_subs)); %current lambdas
-    net_penalties(cur_subs) = net_penalties(cur_subs) + penalties.*cur_lambdas;
-    net_pen_grads(cat(2,param_inds{cur_subs})) = net_pen_grads(cat(2,param_inds{cur_subs})) + reshape(bsxfun(@times,pen_grads,cur_lambdas),[],1);
-    end
+for ii = 1:length(Tmats) % loop over the derivative regularization matrices
+	cur_subs = find([nim.subunits(fit_subs).Xtarg] == Tmats(ii).Xtarg); % set of subunits acting on the stimulus given by this Tmat
+	if ~isempty(cur_subs)
+		penalties = sum((Tmats(ii).Tmat * cat(2,filtKs{cur_subs})).^2);
+		pen_grads = 2*(Tmats(ii).Tmat' * Tmats(ii).Tmat * cat(2,filtKs{cur_subs}));
+		cur_lambdas = nim.get_reg_lambdas(Tmats(ii).type,'subs',fit_subs(cur_subs)); % current lambdas
+		net_penalties(cur_subs) = net_penalties(cur_subs) + penalties.*cur_lambdas;
+		net_pen_grads(cat(2,param_inds{cur_subs})) = net_pen_grads(cat(2,param_inds{cur_subs})) + reshape(bsxfun(@times,pen_grads,cur_lambdas),[],1);
+	end
 end
 
 l2_lambdas = nim.get_reg_lambdas('subs',fit_subs,'l2');
 if any(l2_lambdas > 0)
-    net_penalties = net_penalties + l2_lambdas.*cellfun(@(x) sum(x.^2),filtKs)';
-    for ii = 1:length(un_Xtargs)
-        cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
-        net_pen_grads(cat(2,param_inds{cur_subs})) = net_pen_grads(cat(2,param_inds{cur_subs})) + reshape(2*bsxfun(@times,l2_lambdas(cur_subs),cat(2,filtKs{cur_subs})),[],1);
-    end
+	net_penalties = net_penalties + l2_lambdas.*cellfun(@(x) sum(x.^2),filtKs)';
+	for ii = 1:length(un_Xtargs)
+		cur_subs = find(Xtarg_set == un_Xtargs(ii)); % set of targeted subunits that act on this Xtarg
+		net_pen_grads(cat(2,param_inds{cur_subs})) = net_pen_grads(cat(2,param_inds{cur_subs})) + reshape(2*bsxfun(@times,l2_lambdas(cur_subs),cat(2,filtKs{cur_subs})),[],1);
+	end
 end
 
 penLL = penLL - sum(net_penalties);
