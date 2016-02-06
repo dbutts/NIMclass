@@ -42,12 +42,12 @@
 		figure;
 		% Plot Subunit info
 		for nn = 1:Nmods
-			nim.subunits(nn).display_filter( nim.stim_params(nim.subunits(nn).Xtarg).dims, [Nrows Ncols (nn-1)*Ncols+1], modvarargin );
+			nim.subunits(nn).display_filter( nim.stim_params(nim.subunits(nn).Xtarg).dims, [Nrows Ncols (nn-1)*Ncols+1], modvarargin{:} );
 			subplot( Nrows, Ncols, (nn-1)*Ncols+3 );
 			if isempty(mod_outs)
 				nim.subunits(nn).display_NL();
 			else
-				nim.subunits(nn).display_NL( mod_outs.gints(:,nn) );
+				nim.subunits(nn).display_NL( mod_outs.gint(:,nn) );
 			end
 		end
 		
