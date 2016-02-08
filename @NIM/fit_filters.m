@@ -66,15 +66,9 @@ if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
 	fit_offsets = fit_offsets(fit_subs); % if only fitting subset of filters, set fit_offsets accordingly
 end
 
-mod_NL_types = {nim.subunits(fit_subs).NLtype}; % NL types for each targeted subunit
-if any(strcmp(mod_NL_types(fit_offsets),'lin'))
-	% fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
-	fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
-end
-if any(strcmp(mod_NL_types(fit_offsets),'nonpar'))
-	% fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
-	fit_offsets(strcmp(mod_NL_types(fit_offsets),'nonpar')) = false;
-end
+mod_NL_types = {nim.subunits.NLtype}; % NL types for each targeted subunit
+fit_offsets(strcmp(mod_NL_types,'lin')) = 0;
+fit_offsets(strcmp(mod_NL_types,'nonpar')) = 0;
 
 % Validate inputs
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
@@ -259,8 +253,8 @@ for ii = 1:Nfit_subs % loop over subunits, get filter coefs and their indices wi
 	NKtot = NKtot + filtLen(ii); % inc counter
 end
 sub_offsets = [nim.subunits(fit_subs).NLoffset]; % default offsets to whatever they're set at
-offset_inds = NKtot + (1:sum(fit_offsets)); % indices within parameter vector of offset terms were fitting
-sub_offsets(fit_offsets) = params(offset_inds); % if were fitting, overwrite these values with current params
+offset_inds = NKtot + (1:sum(fit_offsets)); % indices within parameter vector of offset terms we're fitting
+sub_offsets(fit_offsets == 1) = params(offset_inds); % if were fitting, overwrite these values with current params
 
 if ~isempty(un_Xtargs)
 	for ii = 1:length(un_Xtargs) % loop over the unique Xtargs and compute the generating signals for all relevant filters
