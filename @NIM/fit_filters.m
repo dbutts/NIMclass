@@ -71,6 +71,10 @@ if any(strcmp(mod_NL_types(fit_offsets),'lin'))
 	% fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
 	fit_offsets(strcmp(mod_NL_types(fit_offsets),'lin')) = false;
 end
+if any(strcmp(mod_NL_types(fit_offsets),'nonpar'))
+	% fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+	fit_offsets(strcmp(mod_NL_types(fit_offsets),'nonpar')) = false;
+end
 
 % Validate inputs
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
@@ -196,18 +200,18 @@ if first_order_optim > nim.opt_check_FO
 end
 
 %% PARSE MODEL FIT
-nim.spkNL.theta = params(end); %set new offset parameter
+nim.spkNL.theta = params(end); % set new offset parameter
 if fit_spk_hist
 	nim.spk_hist.coefs = params(Nfit_filt_params + (1:spkhstlen));
 end
 kOffset = 0; %position counter for indexing param vector
 for ii = 1:Nfit_subs
 	filtLen = length(nim.subunits(fit_subs(ii)).filtK);
-	cur_kern = params((1:filtLen) + kOffset); %grab parameters corresponding to this subunit's filters
-	nim.subunits(fit_subs(ii)).filtK = cur_kern(:); %assign new filter values
+	cur_kern = params((1:filtLen) + kOffset); % grab parameters corresponding to this subunit's filters
+	nim.subunits(fit_subs(ii)).filtK = cur_kern(:); % assign new filter values
 	kOffset = kOffset + filtLen;
 end
-for ii = 1:Nfit_subs %parse any fit offset parameters
+for ii = 1:Nfit_subs % parse any fit offset parameters
 	if fit_offsets(ii) 
 		nim.subunits(fit_subs(ii)).NLoffset = params(kOffset + 1);
 		kOffset = kOffset + 1;
@@ -227,44 +231,43 @@ end
 %% ************************** INTERNAL FUNCTION ***************************
 
 function [penLL, penLLgrad] = internal_LL_filters( nim, params, Robs, Xstims, Xspkhst, nontarg_g, gain_funs, Tmats, fit_opts )
-% computes the penalized LL and its gradient wrt the filters for the given nim
-% with parameter vector params
+% computes the penalized LL and its gradient wrt the filters for the given nim with parameter vector params
 
 fit_subs = fit_opts.fit_subs;
-Nfit_subs = length(fit_subs); %number of targeted subs
-fit_offsets = fit_opts.fit_offsets; %which filters are we fitting offset parameters for
+Nfit_subs = length(fit_subs); % number of targeted subs
+fit_offsets = fit_opts.fit_offsets; % which filters are we fitting offset parameters for
 
 % USEFUL VALUES
 theta = params(end); % overall model offset
-gint = nan(length(Robs),Nfit_subs); %initialize matrix for storing filter outputs
-filtLen = zeros(Nfit_subs,1); %store the length of each (target) sub's filter
-filtKs = cell(Nfit_subs,1); %store the filter coefs for all (target) subs)
-param_inds = cell(Nfit_subs,1); %this will store the index values of each subunit's filter coefs within the parameter vector
-Xtarg_set = [nim.subunits(fit_subs).Xtarg]; %vector of Xfit_subs for set of subunits being optimized
-un_Xtargs = unique(Xtarg_set); %set of unique Xfit_subs
-mod_NL_types = {nim.subunits(fit_subs).NLtype}; %NL types for each targeted subunit
-unique_NL_types = unique(mod_NL_types); %unique set of NL types being used
-mod_weights = [nim.subunits(fit_subs).weight]'; %signs of targeted subunits
+gint = nan(length(Robs),Nfit_subs); % initialize matrix for storing filter outputs
+filtLen = zeros(Nfit_subs,1); % store the length of each (target) sub's filter
+filtKs = cell(Nfit_subs,1); % store the filter coefs for all (target) subs)
+param_inds = cell(Nfit_subs,1); % this will store the index values of each subunit's filter coefs within the parameter vector
+Xtarg_set = [nim.subunits(fit_subs).Xtarg]; % vector of Xfit_subs for set of subunits being optimized
+un_Xtargs = unique(Xtarg_set); % set of unique Xfit_subs
+mod_NL_types = {nim.subunits(fit_subs).NLtype}; % NL types for each targeted subunit
+unique_NL_types = unique(mod_NL_types); % unique set of NL types being used
+mod_weights = [nim.subunits(fit_subs).weight]'; % signs of targeted subunits
 
 G = theta + nontarg_g; % initialize overall generating function G with the offset term and the contribution from nontarget subs
 
-NKtot = 0;  %init filter coef counter
-for ii = 1:Nfit_subs %loop over subunits, get filter coefs and their indices within the parameter vector
+NKtot = 0;  % init filter coef counter
+for ii = 1:Nfit_subs % loop over subunits, get filter coefs and their indices within the parameter vector
 	filtLen(ii) = length(nim.subunits(fit_subs(ii)).filtK); % length of filter
-	param_inds{ii} = NKtot + (1:filtLen(ii)); %set of param indices associated with this subunit's filters
-	filtKs{ii} = params(param_inds{ii}); %store filter coefs
-	NKtot = NKtot + filtLen(ii); %inc counter
+	param_inds{ii} = NKtot + (1:filtLen(ii)); % set of param indices associated with this subunit's filters
+	filtKs{ii} = params(param_inds{ii}); % store filter coefs
+	NKtot = NKtot + filtLen(ii); % inc counter
 end
-sub_offsets = [nim.subunits(fit_subs).NLoffset];%default offsets to whatever they're set at
-offset_inds = NKtot + (1:sum(fit_offsets)); %indices within parameter vector of offset terms were fitting
-sub_offsets(fit_offsets) = params(offset_inds); %if were fitting, overwrite these values with current params
+sub_offsets = [nim.subunits(fit_subs).NLoffset]; % default offsets to whatever they're set at
+offset_inds = NKtot + (1:sum(fit_offsets)); % indices within parameter vector of offset terms were fitting
+sub_offsets(fit_offsets) = params(offset_inds); % if were fitting, overwrite these values with current params
 
 if ~isempty(un_Xtargs)
-	for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
-		cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
-		gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
+	for ii = 1:length(un_Xtargs) % loop over the unique Xtargs and compute the generating signals for all relevant filters
+		cur_subs = find(Xtarg_set == un_Xtargs(ii)); % set of targeted subunits that act on this Xtarg
+		gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); % apply filters to stimulus
 	end
-	gint = bsxfun(@plus,gint,sub_offsets); %add in filter offsets
+	gint = bsxfun(@plus,gint,sub_offsets); % add in filter offsets
 end
 
 use_batch_calc = false;
