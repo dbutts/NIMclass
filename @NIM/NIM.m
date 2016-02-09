@@ -859,7 +859,7 @@ methods
 
 		% PROCESS INPUTS
 		defaults.eval_inds = nan; % this default means evaluate on all data
-    defaults.gain_funs = []; % default has no gain_funs 
+		defaults.gain_funs = []; % default has no gain_funs 
 		defaults.subs = 1:Nsubs; % default is all subunits
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin, {}, defaults );
 		validate_parsed_options( parsed_options, {'subs','gain_funs'} );
