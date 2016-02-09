@@ -244,12 +244,7 @@ methods
 				subunit.display_spatial_filter( dims, modvarargin{:} );
 			else
 				k = reshape( subunit.get_filtK(), dims(1:2) );
-<<<<<<< HEAD
-				Kmax = max(abs(k(:)));
-				imagesc( 1:dims(1),1:dims(2), k, Kmax*[-1 1] )
-=======
 				imagesc( 1:dims(1),1:dims(2), k, max(abs(k(:)))*[-1 1] )
->>>>>>> bf53e93cd687a466514a8ee20e516cd6616d3923
 				if isfield(parsed_options,'colormap')
 					colormap(parsed_options.colormap);
 				else
