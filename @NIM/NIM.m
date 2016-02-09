@@ -771,8 +771,8 @@ methods
 	%       NL_pen total regularization penalty on filter upstream NLs
 	%       nullLL: LL of constant-rate model
 
-		Nsubs = length(nim.subunits); %number of subunits
-		NT = length(Robs); %number of time points
+		Nsubs = length(nim.subunits); % number of subunits
+		NT = length(Robs); % number of time points
       
 		% PROCESS INPUTS
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin );
@@ -781,7 +781,11 @@ methods
 		if isfield( parsed_options, 'gain_funs' )
 			gain_funs = parsed_options.gain_funs;
 		end
-				
+
+		if ~iscell(Xstims)
+			tmp = Xstims; clear Xstims
+			Xstims{1} = tmp;
+		end
 		if isempty(Robs); Robs = zeros(size(Xstims{1},1),1); end % if empty, make null list
 		if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
 		nim.check_inputs(Robs,Xstims,eval_inds,gain_funs); % make sure input format is correct

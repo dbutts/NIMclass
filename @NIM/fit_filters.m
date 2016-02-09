@@ -71,6 +71,11 @@ fit_offsets(strcmp(mod_NL_types,'lin')) = 0;
 fit_offsets(strcmp(mod_NL_types,'nonpar')) = 0;
 
 % Validate inputs
+if ~iscell(Xstims)
+	tmp = Xstims;
+	clear Xstims
+	Xstims{1} = tmp;
+end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
 nim.check_inputs( Robs, Xstims, train_inds, gain_funs ); % make sure input format is correct
 
