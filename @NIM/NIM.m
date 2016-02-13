@@ -1001,7 +1001,31 @@ methods
     xlabel('Time');
     title('Spike history','fontsize',8)	
 	end	
+
+	function [] = display_subunit_filters( nim, varargin )
+	% Usage: [] = nim.display_subunit_filters( G, varargin )
+	%
+	% Display only subunit filters, arranged in efficient grid
 	
+		Nsubs = length(nim.subunits);
+		Ncols = 2*ceil(sqrt(Nsubs/4));
+		Nrows = ceil(Nsubs/Ncols*2);
+		
+		figure
+		for nn = 1:Nsubs
+			% Plot filters (allowing 2 positions for each display) 
+			dims = nim.stim_params(nim.subunits(nn).Xtarg).dims;
+			nim.subunits(nn).display_filter( dims, [Nrows Ncols 2*(nn-1)+1], varargin{:} );
+			subplot( Nrows, Ncols, 2*(nn-1)+1 );
+			if nim.subunits(nn).weight > 0
+				stype = 'exc';
+			else
+				stype = 'sup';
+			end
+			title( sprintf( 'Sub #%d (%s)', nn, stype ) )
+		end
+	end
+
 end
 
 %% ********************** Hidden Methods **********************************
