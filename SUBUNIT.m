@@ -14,13 +14,13 @@ properties
 	weight;      % subunit weight (typically +/- 1)
 	Xtarg;       % index of stimulus the subunit filter acts on
 	reg_lambdas; % struct of regularization hyperparameters
-	Ksign_con;   %scalar defining any constraints on the filter coefs [-1 is negative con; +1 is positive con; 0 is no con]
+	Ksign_con;   % scalar defining any constraints on the filter coefs [-1 is negative con; +1 is positive con; 0 is no con]
 end
 	
 properties (Hidden)
-	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; %set of subunit NL functions currently implemented
-	TBy_deriv;   %internally stored derivative of tent-basis NL
-	scale;       %SD of the subunit output derived from most-recent fit
+	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; % set of subunit NL functions currently implemented
+	TBy_deriv;   % internally stored derivative of tent-basis NL
+	scale;       % SD of the subunit output derived from most-recent fit
 end
     
 	
