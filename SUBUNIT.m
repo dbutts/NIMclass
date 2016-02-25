@@ -229,12 +229,14 @@ methods
 			plotloc = [1 2 1];
 		end
 		assert( plotloc(3) < prod(plotloc(1:2)), 'Invalid plot location.' )
+		titleloc = plotloc(3);
 		
 		if prod(dims(2:3)) == 1
 
 			% then 1-dimensional filter
-			subplot( plotloc(1), plotloc(2), plotloc(3)+[0 1]); hold on
+			subplot( plotloc(1), plotloc(2), plotloc(3)+[0 1] ); hold on
 			subunit.display_temporal_filter( dims, modvarargin{:} );
+			titleloc = plotloc(3)+[0 1];
 			
 		elseif dims(3) == 1
 			
@@ -270,7 +272,7 @@ methods
 		end
 		
 		if ~isfield( parsed_options, 'notitle' )
-			subplot( plotloc(1), plotloc(2), plotloc(3) ) % to put title back on the first
+			subplot( plotloc(1), plotloc(2), titleloc ) % to put title back on the first
 			if strcmp(subunit.NLtype,'lin')
 				title(sprintf('Lin'),'fontsize',10);
 			elseif subunit.weight == 1
