@@ -6,10 +6,12 @@
 	%  Optional flags:
 	%    'Xstims': to enter Xstims for calculation of G-distributions
 	%    'Robs': to enter Robs, as required for G-distributions where there is a spike-history term
-	%    'mod_outs': output of eval_model that gives required internal parameters
+	%    'mod_outs': output of eval_model that gives required internal parameters in place of Xstims and Robs
 	%    'colormap': to specify colormap for any image plots in filter displays
 	
 		[~,parsed_options,modvarargin] = NIM.parse_varargin( varargin, {'Xstims','Robs','mod_outs'} );
+		valid_list = {'Xstims','Robs','mod_outs','colormap','single','color','dt','time_rev','xt-separable','xt-spatial','sign','y_offset'};
+		NIM.validate_parsed_options( parsed_options, valid_list );
 		Nmods = length(nim.subunits);
 		mod_outs = [];
 		

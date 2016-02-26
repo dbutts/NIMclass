@@ -84,7 +84,7 @@ non_fit_subs = setdiff( 1:Nsubs, fit_subs ); %elements of the model held constan
 spkhstlen = nim.spk_hist.spkhstlen; %length of spike history filter
 if fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if spkhstlen > 0 % create spike history Xmat IF NEEDED
-	Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
+	Xspkhst = nim.create_spkhist_Xmat( Robs );
 else
 	Xspkhst = [];
 end

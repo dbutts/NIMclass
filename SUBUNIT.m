@@ -477,8 +477,9 @@ methods
 		end
 		box off
 		xlabel('g')
+		title('subunit NL')
 	end
-
+	
 end
 
 %% ********************** Getting Methods *********************************

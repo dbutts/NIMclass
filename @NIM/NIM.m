@@ -52,6 +52,7 @@ methods
 end
 methods (Static)
 	Xmat = create_time_embedding( stim, params ) % make time-embedded stimulus
+	spikebins = convert_to_spikebins( binned_spikes ) % make vector of spk indices from binned spike histogram
 	Xshifted = shift_mat_zpad( X, shift, dim ) % shift matrix along given dimension
 end
 methods (Static, Hidden)
@@ -87,6 +88,7 @@ end
 %   function rate_deriv = apply_spkNL_deriv( nim, gen_signal, thresholded_inds )
 %   function rate_grad = spkNL_param_grad( nim, params, x )
 %   function Tmats = make_Tikhonov_matrices( nim )
+%   function Xspkhst = create_spkhist_Xmat( nim, Robs )
 %   function Tmat = make_NL_Tmat( nim )
 %   function [] = check_inputs( nim, Robs, Xstims, sub_inds, gain_funs )
 %   function nim = set_subunit_scales( nim, fgint )
@@ -109,17 +111,20 @@ methods
 	%                   with each subunit. If it's a single string, we use the same NL type throughout 
 	%   mod_signs: vector specifying the weight associated with each subunit (typically +/-1) 
 	%   optional_flags:
-	%       ('Xtargets',Xtargs): vector specifying the index of the stimulus each subunit 
-	%           acts on (defaults to ones) 
-	%       ('spkNL',spkNL): string specifying type of spkNL function
-	%       ('noise_dist',noise_dist): string specifying type of noise distribution 
-	%       ('init_filts',init_filts): cell array of initial filter values 
-	%       ('Ksign_cons',Ksign_cons): vector specifying any constraints on the filter
-	%           coefs of each subunit. [-1 for neg; +1 for pos; nan for no cons]
+	%   -> general subunit information
 	%       ('NLparams',NLparams): vector of parameter values (or cell array) for the corresponding NL functions
 	%       ('NLoffsets',NLoffsets): vector of initial NL offset terms (or single value)
-	%       (lambda_type,lambda_vals): specify type of regularization, and then a vector
-	%           of values for each subunit (or a scalar which is assumed the same for all units
+	%       ('init_filts',init_filts): cell array of initial subunit filter values 
+	%       ('Ksign_cons',Ksign_cons): vector specifying any constraints on the filter
+	%           coefs of each subunit. [-1 for neg; +1 for pos; nan for no cons]
+	%       ('Xtargets',Xtargs): vector specifying the index of the stimulus each subunit acts on (defaults to ones) 
+	%   -> spiking nonlinearity and noise model]
+	%       ('spkNL',spkNL): string specifying type of spkNL function
+	%       ('noise_dist',noise_dist): string specifying type of noise distribution 
+	%   -> regularization
+	%       (lambda_type,lambda_vals): specify type of regularization, and then a vector of values for each 
+	%          subunit (or a scalar which is assumed the same for all units. Regularization types 
+	%          currently supported are: l1, l2, d2xt, d2x, d2t, and nld2 (for non-parametric nonlinearity)
 	%
 	% OUTPUTS:
 	%   nim: initialized model object
@@ -509,12 +514,12 @@ methods
 	%						 allowed: 'lin','quad','rectlin','rectpow','softplus'
 	%   mod_signs: vector of weights associated with each subunit (typically +/- 1)
 	%   optional flags:
-	%     'xtargs': specify vector of of Xtargets for each added subunit
 	%     'init_filts': cell array of initial filter values for each subunit
 	%     'lambda_type': first input is a string specifying the type of
 	%                    regularization (e.g. 'd2t' for temporal smoothness). This must be followed by a
 	%                    scalar/vector giving the associated lambda value(s).
 	%     'NLparams': cell array of upstream NL parameter vectors
+	%     'xtargs': specify vector of of Xtargets for each added subunit
 	% OUTPUTS: nim: updated nim object
      
 		if ~iscell(NLtypes) && ischar(NLtypes);
@@ -601,9 +606,9 @@ methods
 	% INPUTS: 
 	%   n_bins: number of coefficients in spike history filter
 	%   optional flags:
-	%     ('init_spacing',init_spacing): Initial spacing (in time bins) of piecewise constant 'basis functions'
-	%     ('doubling_time',doubling_time): Make bin spacing logarithmically increasing, with given doubling time
-	%     'negCon': If flag is included, constrain spike history filter coefs to be non-positive
+	%     init_spacing: Initial spacing (in time bins) of piecewise constant 'basis functions' (default = 1)
+	%     doubling_time: Make bin spacing logarithmically increasing, with given doubling time (default no doubling)
+	%     negCon: If flag is included, constrain spike history filter coefs to be non-positive (default false)
 	% OUTPUTS: nim: new nim object
 
 		% Default inputs
@@ -669,7 +674,7 @@ methods
     
 		Nsubs = length(nim.subunits);
 
-		% set defaults
+		% Set defaults
 		defaults.subs = 1:Nsubs; % defualt to fitting all subunits 
 		defaults.NLmon = 1; % default monotonic increasing TB-coefficients
 		defaults.edge_p = 0.05; % relative to the generating distribution (pth percentile) where to put the outermost tent bases
@@ -678,10 +683,8 @@ methods
 		defaults.lambda_nld2 = 0; % default no smoothing on TB coefs
 		
 		[~,parsed_inputs] = NIM.parse_varargin( varargin, {}, defaults );
-		
-		% set flags and error check
 		subs = parsed_inputs.subs;
-		
+
 		% Store NL tent-basis parameters
 		tb_params = struct( 'NLmon', parsed_inputs.NLmon, 'edge_p',parsed_inputs.edge_p, ...
 							'n_bfs',parsed_inputs.n_bfs, 'space_type',parsed_inputs.space_type );
@@ -690,6 +693,10 @@ methods
 		end
 		
 		% Compute internal generating functions
+		if ~iscell(Xstims)
+			tmp = Xstims; clear Xstims
+			Xstims{1} = tmp;
+		end
 		gint = nan(size(Xstims{1},1),Nsubs);
 		for ii = 1:length(subs)
 			gint(:,subs(ii)) = Xstims{nim.subunits(subs(ii)).Xtarg} * nim.subunits(subs(ii)).filtK;
@@ -790,7 +797,7 @@ methods
 		if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
 		nim.check_inputs(Robs,Xstims,eval_inds,gain_funs); % make sure input format is correct
 		if nim.spk_hist.spkhstlen > 0 % add in spike history term if needed
-			Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
+			Xspkhst = nim.create_spkhist_Xmat( Robs );
 		else			
 			Xspkhst = [];  
 		end
@@ -1004,25 +1011,35 @@ methods
 
 	function [] = display_subunit_filters( nim, varargin )
 	% Usage: [] = nim.display_subunit_filters( G, varargin )
-	%
-	% Display only subunit filters, arranged in efficient grid
+	% Display only subunit filters, arranged in efficient grids. If one-d filters, then display on 
+	% same plot
 	
-		Nsubs = length(nim.subunits);
-		Ncols = 2*ceil(sqrt(Nsubs/4));
-		Nrows = ceil(Nsubs/Ncols*2);
-		
 		figure
-		for nn = 1:Nsubs
-			% Plot filters (allowing 2 positions for each display) 
-			dims = nim.stim_params(nim.subunits(nn).Xtarg).dims;
-			nim.subunits(nn).display_filter( dims, [Nrows Ncols 2*(nn-1)+1], varargin{:} );
-			subplot( Nrows, Ncols, 2*(nn-1)+1 );
-			if nim.subunits(nn).weight > 0
-				stype = 'exc';
-			else
-				stype = 'sup';
+		Nsubs = length(nim.subunits);
+		if prod(nim.stim_params(1).dims(2:3)) > 1
+			Ncols = 2*ceil(sqrt(Nsubs/4));
+			Nrows = ceil(Nsubs/Ncols*2);
+		
+			for nn = 1:Nsubs
+				% Plot filters (allowing 2 positions for each display) 
+				dims = nim.stim_params(nim.subunits(nn).Xtarg).dims;
+				nim.subunits(nn).display_filter( dims, [Nrows Ncols 2*(nn-1)+1], varargin{:} );
+				subplot( Nrows, Ncols, 2*(nn-1)+1 );
+				if nim.subunits(nn).weight > 0
+					stype = 'exc';
+				else
+					stype = 'sup';
+				end
+				title( sprintf( 'Sub #%d (%s)', nn, stype ) )
 			end
-			title( sprintf( 'Sub #%d (%s)', nn, stype ) )
+		else
+			clrs = 'kbcgrmkbcgrmkbcgrm';
+			hold on
+			for nn = 1:Nsubs
+				plot(nim.subunits(nn).filtK, clrs(nn) )
+				legend_list{nn} = sprintf('k%d', nn );
+			end
+			legend(legend_list)
 		end
 	end
 
@@ -1236,6 +1253,25 @@ methods (Hidden)
 				end
 			end
 		end      
+	end
+
+	function Xspkhst = create_spkhist_Xmat( nim, Robs )
+	% Usage: Xspkhst = nim.create_spkhist_Xmat( Robs )
+	% Creates an X-matrix out of observed spike train Robs (using bin_edges defined in spkhist initialization)
+
+		NT = length(Robs);
+		bin_edges = nim.spk_hist.bin_edges;
+		maxlag = max(bin_edges);
+		spkbns = NIM.convert_to_spikebins(Robs); % spike bins
+
+		Tmat = zeros(NT + maxlag,length(bin_edges)-1);
+		for i = 1:length(spkbns)
+			for j = 1:length(bin_edges)-1
+				Tmat(spkbns(i)+(bin_edges(j):(bin_edges(j+1)-1)),j) = Tmat(spkbns(i)+(bin_edges(j):(bin_edges(j+1)-1)),j) + 1;
+			end
+		end
+
+		Xspkhst =  Tmat(1:NT,:); % concatenate onto X_matrix
 	end
 
 	function Tmat = make_NL_Tmat( nim )

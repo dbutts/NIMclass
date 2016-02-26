@@ -14,23 +14,26 @@ function nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin )
 L2s = [];
 lambdaID = 'd2t';
 Nsubs = length(nim.subunits);
-targets = 1:Nsubs;
-silent = 0;
 
-% Parse reg_path-specific input arguments
-if (length(varargin) == 1) && iscell(varargin)
-	varargin = varargin{1};
-end
+defaults.subs = 1:Nsubs;
+defaults.silent = 0;
+defaults.lambdaID = 'd2t';
+
+[~,parsed_options] = NIM.parse_varargin( varargin, {'slient','lambdaID','L2s','subs'}, defaults );
+targets = parsed_options.subs;
+silent = parsed_options.silent;
 
 modvarargin{1} = Uindx;
 modvarargin{2} = 'silent'; % to pass into subfunctions
 modvarargin{3} = 1;
 
+%targets = parsed_options.subs;
+
 modcounter = 4; j = 1;
 while j <= length(varargin)
-    flag_name = varargin{j};
-    switch lower(flag_name)
-			case 'subs'
+	flag_name = varargin{j};
+	switch lower(flag_name)
+		case 'subs'
 				targets = varargin{j+1};
 				assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
 			case 'l2s'    
