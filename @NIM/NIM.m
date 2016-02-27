@@ -837,14 +837,15 @@ methods
 		end		
 	end
 
-	function [LLs,LLnulls] = eval_model_reps( nim, RobsR, Xstims, varargin )
+	function [LLs,LLnulls,pred_rates] = eval_model_reps( nim, RobsR, Xstims, varargin )
 	% Usage: [LLs,LLnulls] = nim.eval_model_reps( Robs, Xstims, <eval_inds>, <varargin> )
 	% Evaluates the model on the supplied data. In this case RobsR would be a NT x Nreps matrix
    
 		Nreps = size(RobsR,2);
+		pred_rates = zeros(size(RobsR));
 		LLs = zeros(Nreps,1); 	LLnulls = zeros(Nreps,1);
 		for nn = 1:Nreps
-			[LLs(nn),~,~,LLdata] = eval_model(nim, RobsR(:,nn), Xstims, varargin);
+			[LLs(nn),pred_rates(:,nn),~,LLdata] = eval_model(nim, RobsR(:,nn), Xstims, varargin);
 			LLnulls(nn) = LLdata.nullLL;
 		end	
 	end
@@ -1396,6 +1397,25 @@ methods (Static)
 			'tent_spacing',tent_spacing,'boundary_conds',boundary_conds,'split_pts',split_pts);
 	end 
 	
+	function Robs = Spks2Robs( spks, dt, NT )
+	% Usage: Robs = Spks2Robs( spks, dt, NT )
+	% Produces Robs given binsize dt and number of bins
+	
+		Robs = histc( spks, (0:(NT-1))*dt );
+	end
+	
+	function RobsReps = Spks2Robs_reps( spksR, dt, NT )
+	% Usage: RobsReps = Spks2Robs_reps( spksR, dt, NT )
+	% makes NTxNRrep binned spike from spksR (saved as list of spike times with repeats separated
+	% by -1s
+	
+		Rlocs = [0 find(spksR < 0)];
+		Nreps = length(Rlocs)-1;
+		RobsReps = zeros( NT, Nreps );
+		for nn = 1:Nreps
+			RobsReps(:,nn) = NIM.Spks2Robs( spksR((Rlocs(nn)+1):(Rlocs(nn+1)-1)), dt, NT );
+		end		
+	end
 end
 
 %% ********************** Static Hidden Methods ***************************

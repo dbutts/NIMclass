@@ -1,6 +1,6 @@
-function nim = fit_filters(nim, Robs, Xstims, varargin)
-% nim = nim.fit_filters(Robs, Xstims, <train_inds>, varargin)
-% estimate filters of NIM model.
+function nim = fit_filters( nim, Robs, Xstims, varargin )
+% Usage: nim = nim.fit_filters( Robs, Xstims, <train_inds>, varargin )
+% Estimates filters of NIM model.
 %
 % INPUTS:
 %   Robs: vector of response observations (e.g. spike counts)
