@@ -21,14 +21,13 @@ function nim = fit_weights( nim, Robs, Xstims, varargin )
 Nsubs = length(nim.subunits); %number of subunits
 
 % Set defaults for optional inputs
-fit_subs = 1:Nsubs; %defualt to fitting all subunits (plus -1 for spkHist filter)
-gain_funs = []; %default has no gain_funs
-train_inds = nan; %default nan means train on all data
-fit_spk_hist = nim.spk_hist.spkhstlen > 0; %default is to fit the spkNL filter if it exists
-fit_offsets = false(1,Nsubs); %default is NOT to fit the offset terms
-lambda_L1 = 0; %default is no L1 penalty
-silent = false; %default is to display optimization output
-option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_l1'}; %list of possible option strings
+defaults.subs = 1:Nsubs; % defualt to fitting all subunits (plus -1 for spkHist filter)
+defaults.gain_funs = []; % default has no gain_funs
+defaults.fit_spk_hist = nim.spk_hist.spkhstlen > 0; % default is to fit the spkNL filter if it exists
+defaults.fit_offsets = false(1,Nsubs); % default is NOT to fit the offset terms
+defaults.lambda_L1 = 0; % default is no L1 penalty
+defaults.silent = 0; % default is to display optimization output
+option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_L1','fit_offsets'}; % list of possible option strings
 
 % Over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
@@ -36,10 +35,10 @@ if ~isempty(OP_loc)
 	optim_params = varargin{OP_loc+1};
 	varargin(OP_loc:(OP_loc+1)) = [];
 	OP_fields = lower(fieldnames(optim_params));
-	for ii = 1:length(OP_fields) %loop over fields of optim_params
-		if ismember(OP_fields{ii},option_list); %if the field is a valid input option, over-ride the default
+	for ii = 1:length(OP_fields) % loop over fields of optim_params
+		if ismember(OP_fields{ii},option_list); % if the field is a valid input option, over-ride the default
 			eval(sprintf('%s = optim_params.(''%s'');',OP_fields{ii},OP_fields{ii}));
-			optim_params = rmfield(optim_params,OP_fields{ii}); %and remove the field from optim_params, so that the remaining fields are options for the optimizer
+			optim_params = rmfield(optim_params,OP_fields{ii}); % and remove the field from optim_params, so that the remaining fields are options for the optimizer
 		end
 	end
 else
@@ -47,43 +46,27 @@ else
 end
 
 % Now parse explicit optional input args
-j = 1;
-while j <= length(varargin)
-    flag_name = varargin{j};
-    if ~ischar(flag_name)%if not a flag, it must be train_inds
-        train_inds = flag_name;
-        j = j + 1; %only one argument here
-    else
-        switch lower(flag_name)
-            case 'subs'
-                fit_subs = varargin{j+1};
-                assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
-            case 'gain_funs'
-                gain_funs = varargin{j+1};
-            case 'silent'
-                silent = varargin{j+1};
-                assert(ismember(silent,[0 1]),'silent must be 0 or 1');
-            case 'fit_spk_hist'
-                fit_spk_hist = varargin{j+1};
-                assert(ismember(fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
-            case 'lambda_l1'
-                lambda_L1 = varargin{j+1};
-                assert(lambda_L1 >= 0,'weight_L1 must be non_negative');
-						case 'fit_offsets'
-								% do nothing
-            otherwise
-                error('Invalid input flag');
-        end
-        j = j + 2;
-    end
-end
-if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
-	fit_offsets = fit_offsets(fit_subs); % if only fitting subset of filters, set fit_offsets accordingly
-end
+[train_inds,parsed_options] = NIM.parse_varargin( varargin, {}, defaults );
+NIM.validate_parsed_options( parsed_options, option_list );
+fit_subs = parsed_options.subs;
+assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
+if parsed_options.fit_offsets(1) > 0, warning('Offsets are not fit here.'); end
+gain_funs = parsed_options.gain_funs;
+assert(ismember(parsed_options.silent,[0 1]),'silent must be 0 or 1');
+assert(ismember(parsed_options.fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
+assert(parsed_options.lambda_L1 >= 0,'weight_L1 must be non_negative');
+
 mod_NL_types = {nim.subunits(fit_subs).NLtype}; % NL types for each targeted subunit
-if any(strcmp(mod_NL_types(fit_offsets),'lin'))
-	fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
-	fit_offsets( strcmp(mod_NL_types(fit_offsets),'lin') ) = false;
+%if length(fit_subs) < Nsubs && length(fit_offsets) == Nsubs
+%	fit_offsets = fit_offsets(fit_subs); % if only fitting subset of filters, set fit_offsets accordingly
+%end
+%if any(strcmp(mod_NL_types(fit_offsets),'lin'))
+%	fprintf('Cant fit thresholds for linear subunits, ignoring these\n');
+%	fit_offsets( strcmp(mod_NL_types(fit_offsets),'lin') ) = false;
+%end
+if ~iscell(Xstims)
+	tmp = Xstims; clear Xstims
+	Xstims{1} = tmp;
 end
 if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
 nim.check_inputs( Robs, Xstims, train_inds, gain_funs ); % make sure input format is correct
@@ -91,9 +74,9 @@ nim.check_inputs( Robs, Xstims, train_inds, gain_funs ); % make sure input forma
 Nfit_subs = length(fit_subs); % number of targeted subunits
 non_fit_subs = setdiff([1:Nsubs],fit_subs); % elements of the model held constant
 spkhstlen = nim.spk_hist.spkhstlen; % length of spike history filter
-if fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
+if parsed_options.fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if spkhstlen > 0 % create spike history Xmat IF NEEDED
-	Xspkhst = create_spkhist_Xmat( Robs, nim.spk_hist.bin_edges);
+	Xspkhst = nim.create_spkhist_Xmat( Robs );
 else
 	Xspkhst = [];
 end
@@ -108,28 +91,28 @@ end
 
 % PARSE INITIAL PARAMETERS
 init_params = [nim.subunits(fit_subs).weight]';
-lambda_L1 = ones(size(init_params))*lambda_L1;
+lambda_L1 = ones(size(init_params))*parsed_options.lambda_L1;
 lambda_L1 = lambda_L1/sum(Robs); % since we are dealing with LL/spk
 Nfit_filt_params = length(init_params); % number of filter coefficients in param vector
 % Add in spike history coefs
-if fit_spk_hist
+if parsed_options.fit_spk_hist
 	init_params = [init_params; nim.spk_hist.coefs];
 	lambda_L1 = [lambda_L1; zeros(size(nim.spk_hist.coefs))];
 end
 
 init_params = [init_params; nim.spkNL.theta]; % add constant offset
 lambda_L1 = [lambda_L1; 0];
-[nontarg_g] = nim.process_stimulus(Xstims,non_fit_subs,gain_funs);
-if ~fit_spk_hist && spkhstlen > 0 % add in spike history filter output, if we're not fitting it
+[nontarg_g] = nim.process_stimulus( Xstims, non_fit_subs, gain_funs );
+if ~parsed_options.fit_spk_hist && spkhstlen > 0 % add in spike history filter output, if we're not fitting it
 	nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
 end
-[~,targ_outs] = nim.process_stimulus(Xstims,fit_subs,gain_funs);
+[~,targ_outs] = nim.process_stimulus( Xstims, fit_subs, gain_funs );
 
 % IDENTIFY ANY CONSTRAINTS 
 use_con = 0;
 LB = -Inf*ones(size(init_params));
 UB = Inf*ones(size(init_params));
-if fit_spk_hist % if optimizing spk history term
+if parsed_options.fit_spk_hist % if optimizing spk history term
 	% negative constraint on spk history coefs
 	if nim.spk_hist.negCon
 		spkhist_inds = Nfit_filt_params + (1:spkhstlen);
@@ -138,7 +121,7 @@ if fit_spk_hist % if optimizing spk history term
 	end
 end
 
-fit_opts = struct('fit_spk_hist', fit_spk_hist, 'fit_subs', fit_subs); % put any additional fitting options into this struct
+fit_opts = struct('fit_spk_hist', parsed_options.fit_spk_hist, 'fit_subs', fit_subs); % put any additional fitting options into this struct
 % The function we want to optimize
 opt_fun = @(K) internal_LL_weights( nim, K, Robs, targ_outs, Xspkhst, nontarg_g, gain_funs, fit_opts );
 
@@ -162,8 +145,8 @@ else
 		end
 	end
 end
-optim_params = nim.set_optim_params(optimizer,optim_params,silent);
-if ~silent; fprintf('Running optimization using %s\n\n',optimizer); end;
+optim_params = nim.set_optim_params( optimizer, optim_params, parsed_options.silent );
+if ~parsed_options.silent; fprintf('Running optimization using %s\n\n',optimizer); end;
 
 switch optimizer %run optimization
 	case 'L1General_PSSas'
@@ -185,7 +168,7 @@ end
 
 % PARSE MODEL FIT
 nim.spkNL.theta = params(end); % set new offset parameter
-if fit_spk_hist
+if parsed_options.fit_spk_hist
 	nim.spk_hist.coefs = params(Nfit_filt_params + (1:spkhstlen));
 end
 for ii = 1:Nfit_subs
@@ -227,7 +210,7 @@ penLLgrad(end) = sum(residual);      % calculate derivatives with respect to con
 
 % Calculate derivative with respect to spk history filter
 if fit_opts.fit_spk_hist
-	penLLgrad(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
+	penLLgrad(Nfit_subs + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
 end
 if isempty(gain_funs)
 	penLLgrad(1:Nfit_subs) = residual'* targ_outs;

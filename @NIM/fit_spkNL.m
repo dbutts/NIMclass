@@ -109,11 +109,16 @@ optimizer = 'fmincon';
 optim_params = nim.set_optim_params(optimizer,optim_params,silent);
 optim_params.GradObj = 'on';
 opt_fun = @(K) internal_LL_spkNL(nim,K, Robs, G);
-params = fmincon(opt_fun, init_params, [], [], Aeq, Beq, LB, UB, [], optim_params);
-[~,penGrad] = opt_fun(params);
-first_order_optim = max(abs(penGrad));
-if first_order_optim > nim.opt_check_FO
-	warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
+if strcmp(nim.spkNL.type,'logistic')
+	[params,~,~] = fminsearch( opt_fun, init_params );
+	first_order_optim = [];
+else
+	params = fmincon(opt_fun, init_params, [], [], Aeq, Beq, LB, UB, [], optim_params);
+	[~,penGrad] = opt_fun(params);
+	first_order_optim = max(abs(penGrad));
+	if first_order_optim > nim.opt_check_FO
+		warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
+	end
 end
 
 nim.spkNL.params = params(1:end-1);

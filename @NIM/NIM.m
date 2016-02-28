@@ -1094,7 +1094,7 @@ methods (Hidden)
 	end
 
 	function [LL,norm_fact] = internal_LL( nim, rPred, Robs )
-	% Usage: [LL,norm_fact] = internal_LL( nim, rPred, Robs )
+	% Usage: [LL,norm_fact] = nim.internal_LL( rPred, Robs )
 	% Internal evaluatation method for computing the total LL associated with the predicted rate rPred,
 	% given observed data Robs returns total LL as well as an appropriate normalization factor 
       
@@ -1103,7 +1103,7 @@ methods (Hidden)
 				LL = sum(Robs .* log(rPred) -rPred);
 				norm_fact = sum(Robs); % normalize by total nSpks
 			case 'bernoulli' % LL = R*log(r) + (1-R)*log(1-r)
-				LL = sum(Robs.*log(rPred) + (1-Robs).*log(1-rPred));
+				LL = nansum(Robs.*log(rPred) + (1-Robs).*log(1-rPred));
 				norm_fact = sum(Robs); % normalize by total nSpks
 			case 'gaussian' % LL = (r-R)^2 + c
 				LL = -sum((rPred - Robs).^2);
@@ -1583,7 +1583,7 @@ methods (Static, Hidden)
 		
 		% Otherwise invalid elements of list
 		for nn = 1:length(invalids)
-			fprintf('  ''%s'' is not a valid option.', parsed_options(invalids(nn)) );
+			fprintf('\n  ''%s'' is not a valid option.\n', parsed_options{invalids(nn)} );
 		end
 		if nargin < 3
 			error( 'Invalid input arguments.' )
