@@ -498,6 +498,21 @@ methods
 		end
 	end
 
+	function nrms = subunit_filter_norms( nim, Xstims )
+	% Usage: nrms = nim.subunit_filter_norms( Xstims )
+	% Returns array of subunit filter output magnitudes
+	
+		if nargin < 2
+			Xstims = [];
+		end
+		
+		Nsubs = length(nim.subunits);
+		nrms = zeros(1,Nsubs);
+		for nn = 1:Nsubs
+			nrms(nn) = nim.subunits(nn).filter_norm( Xstims );
+		end	
+	end
+	
 end
 
 %% ********************** Helper Methods **********************************
@@ -1050,47 +1065,47 @@ end
 methods (Hidden)
 
 	function [G, fgint, gint] = process_stimulus( nim, Xstims, sub_inds, gain_funs )
-	% Usage: [G, fgint, gint] = process_stimulus( nim, Xstims, sub_inds, gain_funs )
+	% Usage: [G, fgint, gint] = nim.process_stimulus( Xstims, sub_inds, gain_funs )
+	%
 	% Processes the stimulus with the subunits specified in sub_inds
-    %             INPUTS:
-    %                 Xstims: stimulus as cell array
-    %                 sub_inds: set of subunits to process
-    %                 gain_funs: temporally modulated gain of each subunit
-    %             OUTPUTS:
-    %                 G: summed generating signal
-    %                 fgint: output of each subunit
-    %                 gint: output of each subunit filter
+	% INPUTS:
+	%   Xstims: stimulus as cell array
+	%   sub_inds: set of subunits to process
+	%   gain_funs: temporally modulated gain of each subunit
+	% OUTPUTS:
+	%   G: summed generating signal
+	%   fgint: output of each subunit
+	%   gint: output of each subunit filter
 
-        NT = size(Xstims{1},1);
-        if isempty(sub_inds);
-            [G,fgint,gint] = deal(zeros(NT,1));
-            return
-        end
-        Nsubs = length(sub_inds);
-        Xtarg_set = [nim.subunits(sub_inds).Xtarg];
-        un_Xtargs = unique(Xtarg_set); %set of Xtargets
-        filter_offsets = [nim.subunits(sub_inds).NLoffset]; %set of filter offsets
-        filtKs = cell(Nsubs,1);
-        for ii = 1:Nsubs %loop over subunits, get filter coefs
-            filtKs{ii} = nim.subunits(sub_inds(ii)).get_filtK();
-        end
-        gint = zeros(size(Xstims{1},1),Nsubs);
-        for ii = 1:length(un_Xtargs) %loop over the unique Xtargs and compute the generating signals for all relevant filters
-            cur_subs = find(Xtarg_set == un_Xtargs(ii)); %set of targeted subunits that act on this Xtarg
-            gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); %apply filters to stimulus
-        end
-        gint = bsxfun(@plus,gint,filter_offsets); %add offsets to filter outputs
-
-        fgint = gint; %init subunit outputs by filter outputs
-        for ii = 1:Nsubs
-             if ~strcmp(nim.subunits(sub_inds(ii)).NLtype,'lin')
-                fgint(:,ii) = nim.subunits(sub_inds(ii)).apply_NL(gint(:,ii)); %apply upstream NL
-             end
-        end
-        if ~isempty(gain_funs)
-            fgint = fgint.*gain_funs(:,sub_inds); %apply gain modulation if needed
-        end
-        G = fgint*[nim.subunits(sub_inds).weight]';
+		NT = size(Xstims{1},1);
+		if isempty(sub_inds);
+			[G,fgint,gint] = deal(zeros(NT,1));
+			return  
+		end
+		Nsubs = length(sub_inds);
+		Xtarg_set = [nim.subunits(sub_inds).Xtarg];
+		un_Xtargs = unique(Xtarg_set); % set of Xtargets
+		filter_offsets = [nim.subunits(sub_inds).NLoffset]; % set of filter offsets
+		filtKs = cell(Nsubs,1);
+		for ii = 1:Nsubs % loop over subunits, get filter coefs
+			filtKs{ii} = nim.subunits(sub_inds(ii)).get_filtK();
+		end
+		gint = zeros(size(Xstims{1},1),Nsubs);
+		for ii = 1:length(un_Xtargs) % loop over the unique Xtargs and compute the generating signals for all relevant filters
+			cur_subs = find(Xtarg_set == un_Xtargs(ii)); % set of targeted subunits that act on this Xtarg
+			gint(:,cur_subs) = Xstims{un_Xtargs(ii)} * cat(2,filtKs{cur_subs}); % apply filters to stimulus
+		end
+		gint = bsxfun(@plus,gint,filter_offsets); % add offsets to filter outputs
+		fgint = gint; % init subunit outputs by filter outputs
+		for ii = 1:Nsubs
+			if ~strcmp(nim.subunits(sub_inds(ii)).NLtype,'lin')
+				fgint(:,ii) = nim.subunits(sub_inds(ii)).apply_NL(gint(:,ii)); %apply upstream NL
+			end
+		end
+		if ~isempty(gain_funs)
+			fgint = fgint.*gain_funs(:,sub_inds); % apply gain modulation if needed
+		end
+		G = fgint*[nim.subunits(sub_inds).weight]';
 	end
 
 	function [LL,norm_fact] = internal_LL( nim, rPred, Robs )
@@ -1402,6 +1417,7 @@ methods (Static)
 	% Produces Robs given binsize dt and number of bins
 	
 		Robs = histc( spks, (0:(NT-1))*dt );
+		Robs = Robs(:);
 	end
 	
 	function RobsReps = Spks2Robs_reps( spksR, dt, NT )

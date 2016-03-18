@@ -18,7 +18,7 @@ properties
 end
 	
 properties (Hidden)
-	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','nonpar'}; % set of subunit NL functions currently implemented
+	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','exp','nonpar'}; % set of subunit NL functions currently implemented
 	TBy_deriv;   % internally stored derivative of tent-basis NL
 	scale;       % SD of the subunit output derived from most-recent fit
 end
@@ -45,10 +45,10 @@ methods
 			return %handle the no-input-argument case by returning a null model. This is important when initializing arrays of objects
 		end
 		
-		if (nargin < 4 || isempty(Xtarg)); Xtarg = 1; end %default Xtarget is 1
-		if (nargin < 5 || isempty(NLoffset)); NLoffset = 0; end; %default NLoffset is 0
+		if (nargin < 4 || isempty(Xtarg)); Xtarg = 1; end % default Xtarget is 1
+		if (nargin < 5 || isempty(NLoffset)); NLoffset = 0; end; % default NLoffset is 0
 		if nargin < 6; NLparams = []; end;
-		if (nargin < 7 || isempty(Ksign_con)); Ksign_con = 0; end; %default no constraints on filter coefs
+		if (nargin < 7 || isempty(Ksign_con)); Ksign_con = 0; end; % default no constraints on filter coefs
             
 		assert(length(weight) == 1,'weight must be scalar!');
 		assert(ischar(NLtype),'NLtype must be a string');
@@ -67,7 +67,7 @@ methods
 		% parameter vector is the right size, or initialize to default
 		% values      
 		switch subunit.NLtype
-			case {'lin','quad','rectlin'} %these NLs dont have any shape parameters
+			case {'lin','quad','rectlin','exp'} %these NLs dont have any shape parameters
 				assert(isempty(NLparams),sprintf('%s NL type has no shape parameters',subunit.NLtype));       
 			case 'softplus'        
 				if isempty(NLparams)      
@@ -114,7 +114,11 @@ methods
 			case 'rectpow' %f(x;gamma) = x^gamma iff x >= 0; else x = 0
 				sub_out = gen_signal.^subunit.NLparams(1);         
 				sub_out(gen_signal < 0) = 0;            
-				
+
+			case 'exp' %f(x;gamma) = exp(x)
+				sub_out = exp(gen_signal);         
+				sub_out(gen_signal < 0) = 0;            
+
 			case 'softplus' %f(x;beta) = log(1 + exp(beta*x))
 				max_g = 50; %to prevent numerical overflow
 				gint = subunit.NLparams(1)*gen_signal; %beta*gen_signal            
@@ -145,7 +149,6 @@ methods
 	
 		switch subunit.NLtype
                 
-               
 			case 'lin' %f'(x) = 1 (shouldnt ever need to use this within the optimization...)
 				sub_deriv = ones(size(gen_signal));
             
@@ -158,7 +161,10 @@ methods
 			case 'rectpow' %f'(x) = gamma*x^(gamma-1) iff x > =0; else 0
 				sub_deriv = subunit.NLparams(1)*gen_signal.^(subunit.NLparams(1)-1);
 				sub_deriv(gen_signal < 0) = 0;
-                    
+
+			case 'exp' %f'(x) = exp(x)
+				sub_deriv = exp(gen_signal);
+
 			case 'softplus' %f'(x) = beta*exp(beta*x)/(1 + exp(beta*x))
 				max_g = 50; % to prevent numerical overflow
 				gint = subunit.NLparams(1)*gen_signal; % beta*gen_signal
@@ -175,7 +181,7 @@ methods
 	end
 		
 	function NLgrad = NL_grad_param( subunit, x )
-	% Usage: NLgrad = NL_grad_param( subunit, x )
+	% Usage: NLgrad = subunit.NL_grad_param( x )
 	%
 	% Calculates gradient of upstream NL wrt vector of parameters at input
 	% value x. Note, parameter vector is of the form [NLparams NLoffset]
@@ -192,7 +198,10 @@ methods
 				NLgrad(:,1) = (x + 0).^subunit.NLparams(1) .* log(x + 0); %df/dgamma      
 				NLgrad(:,2) = subunit.NLparams(1)*(x + 0).^(subunit.NLparams(1) - 1); %df/dc
 				NLgrad(x < 0,:) = 0;
-    
+
+			case 'exp'
+				NLgrad = exp(x+subunit.NLoffset);
+				
 			case 'softplus' %f(x) = log(1 + exp(beta*(x + c)):
 				temp = exp(subunit.NLparams(1)*(x + subunit.NLoffset))./ (1 + exp(subunit.NLparams(1)*(x + subunit.NLoffset)));
 				NLgrad(:,1) = temp.*(x + subunit.NLoffset); %df/dbeta
@@ -517,6 +526,21 @@ methods
 		end
 	end
 				
+	function nrm = filter_norm( sub0, Xstims )
+	% Usage: rsub = subunit.filter_norm( <Xstims> )
+	% Returns magnitude of filter if Xstims is blank, otherwise magnitude of convolution
+
+		if (nargin < 2) || isempty(Xstims)
+			nrm = sqrt(sum(sub0.filtK.^2));
+		else
+			if ~iscell(Xstims)
+				nrm = abs(sub0.weight) * std( Xstims * sub0.filtK );
+			else
+				nrm = abs(sub0.weight) * std( Xstims{sub0.Xtarg} * sub0.filtK );
+			end
+		end
+	end
+
 end
 
 %% HIDDEN METHODS

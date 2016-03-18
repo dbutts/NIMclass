@@ -50,7 +50,7 @@ end
 NIM.validate_parsed_options( parsed_options, option_list );
 fit_subs = parsed_options.subs;
 assert(all(ismember(fit_subs,1:Nsubs)),'invalid target subunits specified');
-if parsed_options.fit_offsets(1) > 0, warning('Offsets are not fit here.'); end
+%if parsed_options.fit_offsets(1) > 0, warning('Offsets are not fit here.'); end
 gain_funs = parsed_options.gain_funs;
 assert(ismember(parsed_options.silent,[0 1]),'silent must be 0 or 1');
 assert(ismember(parsed_options.fit_spk_hist,[0 1]),'fit_spk_hist must be 0 or 1');
