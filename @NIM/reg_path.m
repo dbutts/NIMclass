@@ -34,23 +34,29 @@ while j <= length(varargin)
 	flag_name = varargin{j};
 	switch lower(flag_name)
 		case 'subs'
-				targets = varargin{j+1};
-				assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
-			case 'l2s'    
-				L2s = varargin{j+1};  
-			case 'silent'
-				silent = varargin{j+1};
-			case 'lambdaid'
-				lambdaID = varargin{j+1}; 
-			otherwise
-				modvarargin{modcounter} = varargin{j};
-				modvarargin{modcounter+1} = varargin{j+1};
-				modcounter = modcounter + 2;
-		end
-		j = j + 2;
+			targets = varargin{j+1};
+			assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
+		case 'l2s'    
+			L2s = varargin{j+1};  
+		case 'silent'
+			silent = varargin{j+1};
+		case 'lambdaid'
+			lambdaID = varargin{j+1}; 
+		otherwise
+			modvarargin{modcounter} = varargin{j};
+			modvarargin{modcounter+1} = varargin{j+1};
+			modcounter = modcounter + 2;
+	end
+	j = j + 2;
 end
 
 Nreg = length(L2s);
+
+if strcmpi(lambdaID,'l1')
+	regchar = '1';
+else
+	regchar = '2';
+end
 
 % Add targets to modvarargin
 modvarargin{modcounter} = 'subs';
@@ -61,7 +67,7 @@ for tar = targets
 		%% Do order-of-mag reg first
 		L2s = [0 0.1 1.0 10 100 1000 10000 1e5];
 		if ~silent 
-			fprintf( 'Order-of-magnitude L2 reg path: target = %d\n', tar )
+			fprintf( 'Order-of-magnitude L%c reg path: target = %d\n', regchar, tar )
 		end		
 		LLregs = zeros(length(L2s),1);
 		for nn = 1:length(L2s)
@@ -117,7 +123,7 @@ for tar = targets
 		fitsave{Nreg} = fitsaveM{loweredge+1};
 
 		if ~silent
-			fprintf( 'Zooming in on L2 reg path (%0.1f-%0.1f):\n', mag, mag*10 )
+			fprintf( 'Zooming in on L%c reg path (%0.1f-%0.1f):\n', regchar, mag, mag*10 )
 		end
 
 		for nn = 2:(Nreg-1)
@@ -146,7 +152,7 @@ for tar = targets
 		
 		%% Use L2 list estalished in function call
 		if ~silent
-			fprintf( 'L2 reg path (%d): target = %d', Nreg, tar )
+			fprintf( 'L%c reg path (%d): target = %d', regchar, Nreg, tar )
 		end
 		LLregs = zeros(Nreg,1);
 

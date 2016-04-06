@@ -37,7 +37,7 @@ methods
 	%     NLtype: string specifying the type of upstream NL
 	%     <Xtarg>: scalar index specifying which stimulus element this subunit acts on
 	%     <NLoffset>: scalar term added to filter output
-	%     <NLparams>: vector of 'shape' parameters for the upstream NL
+	%     <NLparams>: cell array of vectors of 'shape' parameters for the upstream NL(s)
 	%     <Ksign_con>: constraint on filter coefs [-1 = negative; +1 = positive; 0 is no con]
 	%   OUTPUTS: subunit: subunit object
         
