@@ -1,4 +1,4 @@
-	function [] = display_model( nim, varargin )
+	function  fig_handle = display_model( nim, varargin )
 	% Usage: [] = nim.display_model( varargin )
 	% Displays all parts of model as single plot (with multiple subplots)
 	%
@@ -41,7 +41,11 @@
 			Ncols = 4;
 		end
 		
-		figure;
+		if nargout > 0
+			fig_handle = figure;
+		else
+			figure;
+		end
 		% Plot Subunit info
 		for nn = 1:Nmods
 			nim.subunits(nn).display_filter( nim.stim_params(nim.subunits(nn).Xtarg).dims, [Nrows Ncols (nn-1)*Ncols+1], modvarargin{:} );
