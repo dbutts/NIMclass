@@ -1,5 +1,6 @@
 function nim = fit_spkNL(nim, Robs, Xstims, varargin)
-% Usage: nim = nim.fit_spkNL(Robs, Xstims, <train_inds>, varargin)
+% Usage: nim = nim.fit_spkNL( Robs, Xstims, <train_inds>, varargin )
+%
 % Optimizes the parameters of the spkNL
 %
 % INPUTS:
@@ -110,14 +111,14 @@ optim_params = nim.set_optim_params(optimizer,optim_params,silent);
 optim_params.GradObj = 'on';
 opt_fun = @(K) internal_LL_spkNL(nim,K, Robs, G);
 if strcmp(nim.spkNL.type,'logistic')
-	[params,~,~] = fminsearch( opt_fun, init_params );
+	[params,~,~] = fminsearch( opt_fun, init_params, optim_params );
 	first_order_optim = [];
 else
 	params = fmincon(opt_fun, init_params, [], [], Aeq, Beq, LB, UB, [], optim_params);
 	[~,penGrad] = opt_fun(params);
 	first_order_optim = max(abs(penGrad));
 	if first_order_optim > nim.opt_check_FO
-		warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
+		warning( 'First-order optimality: %.3f, fit might not be converged!', first_order_optim );
 	end
 end
 

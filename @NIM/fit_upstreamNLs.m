@@ -16,10 +16,12 @@ function nim = fit_upstreamNLs(nim, Robs, Xstims, varargin)
 % OUTPUTS:
 %   nim: output model struct
 
-Nsubs = length(nim.subunits); %number of subunits
-
+Nsubs = length(nim.subunits); % number of subunits
 % Set defaults for optional inputs
-poss_targets = find(strcmp(nim.get_NLtypes,'nonpar'))'; %can only fit subunits with nonpar NLs
+poss_targets = find(strcmp(nim.get_NLtypes,'nonpar'))'; % can only fit subunits with nonpar NLs
+assert( ~isempty(poss_targets),'No non-parametric nonlinearities to fit.' )
+n_tbfs = length(nim.subunits(poss_targets(1)).NLnonpar.TBx);
+
 defaults.subs = poss_targets; % default is to fit all subunits with nonpar NLs
 defaults.gain_funs = []; % default has no gain_funs
 defaults.silent = false; % default is show the optimization output
@@ -43,6 +45,7 @@ if ~isempty(OP_loc)
 else
 	optim_params = [];
 end
+
 
 % Now parse explicit optional input args
 [train_inds,parsed_options] = NIM.parse_varargin( varargin, [], defaults );
@@ -136,7 +139,7 @@ end
 % PROCESS CONSTRAINTS
 use_con = 0;
 [LB,UB] = deal(nan(size(init_params)));
-Aeq = []; beq = [];% initialize constraint parameters
+Aeq = []; beq = []; % initialize constraint parameters
 % Check for spike history coef constraints
 if parsed_options.fit_spk_hist
 	% negative constraint on spk history coefs
@@ -157,7 +160,7 @@ if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if
 		cur_range = (ii-1)*n_TBs + (1:n_TBs);
 		% For monotonicity constraint
 		if nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon ~= 0
-			for jj = 1:length(cur_range)-1 %create constraint matrix
+			for jj = 1:length(cur_range)-1 % create constraint matrix
 				cur_vec = zvec;
 				cur_vec(cur_range([jj jj + 1])) = nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon*[1 -1];
 				A = cat(1,A,cur_vec);
@@ -174,16 +177,16 @@ if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if
 	beq = zeros(size(Aeq,1),1);
 	use_con = 1;
 end
-if any(~isnan(LB) | ~isnan(UB)) %check if there are any bound constraints
-	LB(isnan(LB)) = -Inf; UB(isnan(UB)) = Inf; %set all unconstrained parameters to +/- Inf
+if any(~isnan(LB) | ~isnan(UB)) % check if there are any bound constraints
+	LB(isnan(LB)) = -Inf; UB(isnan(UB)) = Inf; % set all unconstrained parameters to +/- Inf
 else
-	LB = []; UB = []; %if no bound constraints, set these to empty
+	LB = []; UB = []; % if no bound constraints, set these to empty
 end
 
 if isfield(optim_params,'optimizer')
-	optimizer = optim_params.('optimizer'); %if user-specified optimizer
+	optimizer = optim_params.('optimizer'); % if user-specified optimizer
 else
-	if ~use_con %if there are no constraints
+	if ~use_con % if there are no constraints
 		if exist('minFunc','file') == 2
 			optimizer = 'minFunc';
 		else
@@ -196,11 +199,12 @@ end
 optim_params = nim.set_optim_params( optimizer, optim_params, parsed_options.silent );
 if ~parsed_options.silent; fprintf('Running optimization using %s\n\n',optimizer); end;
 
-fit_opts = struct('fit_spk_hist', parsed_options.fit_spk_hist, 'fit_subs',fit_subs); %put any additional fitting options into this struct
+fit_opts = struct('fit_spk_hist', parsed_options.fit_spk_hist, 'fit_subs',fit_subs); % put any additional fitting options into this struct
 
 opt_fun = @(K) internal_LL_NLs(nim,K, Robs, XNL, Xspkhst, nontarg_g, Tmat, fit_opts);
 
-switch optimizer %run optimization
+% Run optimization
+switch optimizer 
 	case 'L1General2_PSSas'
 		[params] = L1General2_PSSas(opt_fun,init_params,lambda_L1,optim_params);
 	case 'minFunc'
@@ -216,20 +220,20 @@ switch optimizer %run optimization
 end
 [~,penGrad] = opt_fun(params);
 first_order_optim = max(abs(penGrad));
-if first_order_optim > nim.opt_check_FO
-	warning(sprintf('First-order optimality %.3f, fit might not be converged!',first_order_optim));
+if (first_order_optim > nim.opt_check_FO) && ~use_con % often first-order opt is not satisfied with fit constraints (added use_con)
+	warning( 'First-order optimality %.3f, fit might not be converged.', first_order_optim );
 end
 
-nlmat = reshape(params(1:Nfit_subs*n_TBs),n_TBs,Nfit_subs); %take output K vector and restructure into a matrix of NLBF coefs, one for each module
+nlmat = reshape(params(1:Nfit_subs*n_TBs),n_TBs,Nfit_subs); % take output K vector and restructure into a matrix of NLBF coefs, one for each module
 nlmat_resc = nlmat;
 for ii = 1:Nfit_subs
 	cur_pset = ((ii-1)*n_TBs+1) : (ii*n_TBs);
-	thisnl = nlmat(:,ii); %NL coefs for current subunit
+	thisnl = nlmat(:,ii); % NL coefs for current subunit
 	cur_std = std(XNL(:,cur_pset)*thisnl);
-	if parsed_options.rescale_nls %rescale so that the std dev of the subunit output is conserved
+	if parsed_options.rescale_nls % rescale so that the std dev of the subunit output is conserved
 		thisnl = thisnl*nim.subunits(fit_subs(ii)).scale/cur_std;
 	else
-		nim.subunits(fit_subs(ii)).scale = cur_std; %otherwise adjust the model output std dev
+		nim.subunits(fit_subs(ii)).scale = cur_std; % otherwise adjust the model output std dev
 	end
 	nim.subunits(fit_subs(ii)).NLnonpar.TBy = thisnl';
 	nlmat_resc(:,ii) = thisnl';
@@ -279,7 +283,7 @@ G = theta + nontarg_g;
 all_TBy = params(1:Nfit_subs*n_TBs);
 G = G + XNL*all_TBy;
 
-% add contribution from spike history filter
+% Add contribution from spike history filter
 if fit_opts.fit_spk_hist
 	G = G + Xspkhst*params(Nfit_subs*n_TBs + (1:spkhstlen));
 end

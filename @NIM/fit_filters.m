@@ -127,8 +127,8 @@ end
 
 init_params = [init_params; nim.spkNL.theta]; % add constant offset
 lambda_L1 = [lambda_L1; 0];
-[nontarg_g] = nim.process_stimulus(Xstims,non_fit_subs,gain_funs);
-if ~fit_spk_hist && spkhstlen > 0 % add in spike history filter output, if we're not fitting it
+[nontarg_g] = nim.process_stimulus( Xstims, non_fit_subs, gain_funs );
+if ~fit_spk_hist && (spkhstlen > 0) % add in spike history filter output, if we're not fitting it
 	nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
 end
 
@@ -178,7 +178,7 @@ else
 		end
 	end
 end
-optim_params = nim.set_optim_params(optimizer,optim_params,silent);
+optim_params = nim.set_optim_params( optimizer, optim_params, silent );
 if ~silent; fprintf('Running optimization using %s\n\n',optimizer); end;
 switch optimizer %run optimization
 	case 'L1General_PSSas'
@@ -194,8 +194,8 @@ switch optimizer %run optimization
 end
 [~,penGrad] = opt_fun(params);
 first_order_optim = max(abs(penGrad));
-if first_order_optim > nim.opt_check_FO
-	warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
+if (first_order_optim > nim.opt_check_FO) && ~use_con % often first-order opt is not satisfied with fit constraints (added use_con)
+	warning( 'First-order optimality: %.3f, fit might not be converged.', first_order_optim );
 end
 
 %% PARSE MODEL FIT
@@ -299,11 +299,11 @@ end
 
 % Add contribution from spike history filter
 if fit_opts.fit_spk_hist
-	G = G + Xspkhst*params(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen));
+	G = G + Xspkhst*params( NKtot+length(offset_inds)+(1:nim.spk_hist.spkhstlen) );
 end
 
 pred_rate = nim.apply_spkNL(G);
-[penLL,LL_norm] = nim.internal_LL(pred_rate,Robs); %compute LL and its normalization
+[penLL,LL_norm] = nim.internal_LL(pred_rate,Robs); % compute LL and its normalization
 
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G,pred_rate <= nim.min_pred_rate);
@@ -313,7 +313,7 @@ penLLgrad(end) = sum(residual);      % calculate derivatives with respect to con
 
 % Calculate derivative with respect to spk history filter
 if fit_opts.fit_spk_hist
-	penLLgrad(NKtot + length(offset_inds) + (1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
+	penLLgrad( NKtot+length(offset_inds)+(1:nim.spk_hist.spkhstlen)) = residual'*Xspkhst;
 end
 
 for ii = 1:length(un_Xtargs) % loop over unique Xfit_subs and compute LL grad wrt stim filters
