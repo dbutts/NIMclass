@@ -47,7 +47,7 @@ methods
 	nim = fit_weights( nim, Robs, Xstims, varargin );             % fit linear weights on each subunit
 	nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );     % determine optimal regularization using cross-val data
 	fig_handle = display_model( nim, Robs, Xstims, varargin );    % display current model
-	[] = display_model_dab( nim, Robs, Xstims, varargin );        % display current model
+	[] = display_model_dab( nim, Robs, Xstims, varargin );        % display current model (originally modified version)
 	[] = display_model_jmm( nim, Robs, Xstims, varargin );        % display current model (original version)
 end
 methods (Static)
@@ -860,9 +860,15 @@ methods
 		pred_rates = zeros(size(RobsR));
 		LLs = zeros(Nreps,1); 	LLnulls = zeros(Nreps,1);
 		for nn = 1:Nreps
-			[LLs(nn),pred_rates(:,nn),~,LLdata] = eval_model(nim, RobsR(:,nn), Xstims, varargin);
+			[LLs(nn),rs,~,LLdata] = eval_model( nim, RobsR(:,nn), Xstims, varargin{:} );
+			if nargout > 2  
+				pred_rates(1:length(rs),nn) = rs; % if eval_inds is included in varargin, rs will be smaller
+			end
 			LLnulls(nn) = LLdata.nullLL;
 		end	
+		if nargout > 2
+			pred_rates = pred_rates(1:length(rs),:);
+		end
 	end
 
 	function [filt_SE,hessMat] = compute_filter_SEs( nim, Robs, Xstims, varargin )

@@ -114,12 +114,16 @@ if strcmp(nim.spkNL.type,'logistic')
 	[params,~,~] = fminsearch( opt_fun, init_params, optim_params );
 	first_order_optim = [];
 else
-	params = fmincon(opt_fun, init_params, [], [], Aeq, Beq, LB, UB, [], optim_params);
-	[~,penGrad] = opt_fun(params);
-	first_order_optim = max(abs(penGrad));
-	if first_order_optim > nim.opt_check_FO
-		warning( 'First-order optimality: %.3f, fit might not be converged!', first_order_optim );
-	end
+	[params,~,~] = fminsearch( opt_fun, init_params, optim_params );
+	first_order_optim = [];
+	
+	% Gradient descent does not seem to find optimal
+	%params = fmincon(opt_fun, init_params, [], [], Aeq, Beq, LB, UB, [], optim_params);
+	%[~,penGrad] = opt_fun(params);
+	%first_order_optim = max(abs(penGrad));
+	%if first_order_optim > nim.opt_check_FO
+	%	warning( 'First-order optimality: %.3f, fit might not be converged!', first_order_optim );
+	%end
 end
 
 nim.spkNL.params = params(1:end-1);
