@@ -459,22 +459,22 @@ methods
 		end
 
 		if ~isempty(gint)          
-			[ax,h1,~] = plotyy( cur_modx, cur_mody, gendist_x,gendist_y );          
+			%[ax,h1,~] = plotyy( cur_modx, cur_mody, gendist_x,gendist_y );
+			h1 = plot( cur_modx, cur_mody, 'b','LineWidth',1 );
+			hold on
+			plot( gendist_x, gendist_y/max(gendist_y)*max(cur_mody)/3*2,'r' );
 			if strcmp(subunit.NLtype,'nonpar')            
 				set(h1,'Marker','o');          
 			end
-			set(h1,'linewidth',1)         
-			xlim(ax(1),cur_xrange)         
-			xlim(ax(2),cur_xrange);          
+			xlim(cur_xrange)         
 			if all(cur_mody == 0)
-				ylim(ax(1),[-1 1]);   
+				ylim([-1 1]);   
 			else
-				ylim(ax(1),[min(cur_mody) max(cur_mody)]);   
+				ylim([min(cur_mody) max(cur_mody)]);   
 			end
-			set(ax(2),'ytick',[])   
 			yl = ylim();     
 			line([0 0],yl,'color','k','linestyle','--');    
-			ylabel(ax(1),'f_i(g)','fontsize',8);      
+			ylabel('f_i(g)','fontsize',8);      
 		else
 			h = plot(cur_modx,cur_mody,'linewidth',1);         
 			if strcmp(subunit.NLtype,'nonpar')            

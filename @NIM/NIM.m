@@ -975,7 +975,7 @@ methods
 		[G,parsed_options] = NIM.parse_varargin( varargin ); % first varargin must be G
 		assert((nargin > 1) && ~isempty(G), 'G-distribution required in order to plot spiking nonlinearity.' )
 
-		[Gdist_y,Gdist_x] = hist(G,n_hist_bins); %histogram the generating signal
+		[Gdist_y,Gdist_x] = hist(G,n_hist_bins); % histogram the generating signal
     
 		% This is a hack to deal with cases where the threshold linear terms
 		% Create a min value of G
@@ -983,9 +983,12 @@ methods
 			Gdist_y(1) = 1.5*Gdist_y(2);
 		end
 		
-		cur_xrange = Gdist_x([1 end]);
+		% Cut off extremely low values of g_dist on either side
+		minx = find(Gdist_y > max(Gdist_y)/50,1);
+		maxy = find(Gdist_y > max(Gdist_y)/50, 1, 'last' );
+		cur_xrange = Gdist_x([minx maxy]);
 		if strcmp(nim.spkNL.type,'logistic')
-			NLx = linspace(cur_xrange(1),cur_xrange(2) + diff(cur_xrange)/2,500);
+			NLx = linspace(cur_xrange(1),cur_xrange(2) + diff(cur_xrange)/4,100);
 			cur_xrange = NLx([1 end]);
 		else
 			NLx = Gdist_x;
@@ -994,19 +997,18 @@ methods
 		NLy = nim.apply_spkNL(NLx);
 		NLy = NLy/nim.stim_params(1).dt; %convert to correct firing rate units
     
-		[ax,h1,h2] = plotyy( NLx, NLy, Gdist_x, Gdist_y );
-		set(h1,'linewidth',1)
-		yr = [min(NLy) max(NLy)];
-		xlim(ax(1),cur_xrange)
-		xlim(ax(2),cur_xrange);
-		ylim(ax(1),yr);  
+		plot(NLx,NLy,'b','LineWidth',1)
+		hold on
+		plot(Gdist_x,Gdist_y/max(Gdist_y)*max(NLy)/3*2,'r')
+		xlim(cur_xrange)
+		ylim([min([0 min(NLy)]) max(NLy)]);
 		xlabel('g')
-		ylabel(ax(1),'Firing rate','fontsize',8);
-		%ylabel(ax(2),'Probability','fontsize',8)
-		set(ax(2),'ytick',[]);    
+		ylabel('Firing rate','fontsize',8);
+		%set(gca,'YTick',[]);
 		title('Spiking NL','fontsize',8)
 	end
 
+	
 	function [] = display_spike_history( nim, varargin )
 	% Usage: [] = nim.display_spikingNL( varargin )
 	%
