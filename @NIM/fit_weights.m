@@ -162,8 +162,8 @@ switch optimizer %run optimization
 end
 [~,penGrad] = opt_fun(params);
 first_order_optim = max(abs(penGrad));
-if first_order_optim > nim.opt_check_FO
-	warning(sprintf('First-order optimality: %.3f, fit might not be converged!',first_order_optim));
+if (first_order_optim > nim.opt_check_FO) && ~use_con % often first-order opt is not satisfied with fit constraints (added use_con)
+	warning('First-order optimality: %.3f, fit might not be converged!',first_order_optim);
 end
 
 % PARSE MODEL FIT
