@@ -106,23 +106,24 @@ methods
 	% constructor for class NIM 
 	% INPUTS:
 	%   stim_params: struct array defining parameters for each stimulus the model acts on.
-	%                   Must specify the .dims field for each stim 
+	%                Must specify the .dims field for each stim 
 	%   NLtypes: string or cell array of strings specifying the upstream NL type associated
-	%                   with each subunit. If it's a single string, we use the same NL type throughout 
+	%            with each subunit. If it's a single string, we use the same NL type throughout.
+	%            Allowed NLtypes: {'lin','quad','rectlin','rectpow','softplus','exp','nonpar'} 
 	%   mod_signs: vector specifying the weight associated with each subunit (typically +/-1) 
 	%   optional_flags:
 	%   -> general subunit information
-	%       ('NLparams',NLparams): vector of parameter values (or cell array) for the corresponding NL functions
-	%       ('NLoffsets',NLoffsets): vector of initial NL offset terms (or single value)
-	%       ('init_filts',init_filts): cell array of initial subunit filter values 
-	%       ('Ksign_cons',Ksign_cons): vector specifying any constraints on the filter
-	%           coefs of each subunit. [-1 for neg; +1 for pos; nan for no cons]
-	%       ('Xtargets',Xtargs): vector specifying the index of the stimulus each subunit acts on (defaults to ones) 
+	%      ('NLparams',NLparams): vector of parameter values (or cell array) for the corresponding NL functions
+	%      ('NLoffsets',NLoffsets): vector of initial NL offset terms (or single value)
+	%      ('init_filts',init_filts): cell array of initial subunit filter values 
+	%      ('Ksign_cons',Ksign_cons): vector specifying any constraints on the filter
+	%         coefs of each subunit. [-1 for neg; +1 for pos; nan for no cons]
+	%      ('Xtargets',Xtargs): vector specifying the index of the stimulus each subunit acts on (defaults to ones) 
 	%   -> spiking nonlinearity and noise model]
-	%       ('spkNL',spkNL): string specifying type of spkNL function
-	%       ('noise_dist',noise_dist): string specifying type of noise distribution 
+	%      ('spkNL',spkNL): string specifying type of spkNL function: 'lin','rectpow','exp','softplus','logistic'
+	%      ('noise_dist',noise_dist): string specifying type of noise distribution: 'poisson','bernoulli','gaussian'
 	%   -> regularization
-	%       (lambda_type,lambda_vals): specify type of regularization, and then a vector of values for each 
+	%      (lambda_type,lambda_vals): specify type of regularization, and then a vector of values for each 
 	%          subunit (or a scalar which is assumed the same for all units. Regularization types 
 	%          currently supported are: l1, l2, d2xt, d2x, d2t, and nld2 (for non-parametric nonlinearity)
 	%
@@ -794,7 +795,7 @@ methods
 	%       nullLL: LL of constant-rate model
 
 		Nsubs = length(nim.subunits); % number of subunits
-		NT = length(Robs); % number of time points
+		%NT = length(Robs); % number of time points
       
 		% PROCESS INPUTS
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin );
@@ -954,7 +955,7 @@ methods
 			filt_SE{ii} = allK_SE(irange);    
 		end
 	end
-		
+
 end
 
 %% ********************** Display Methods *********************************
@@ -1348,7 +1349,7 @@ methods (Hidden)
 	
 end
 
-%% ********************** Hidden Methods **********************************
+%% ********************** Static Methods **********************************
 methods (Static)
 
 	function stim_params = create_stim_params(dims,varargin)
@@ -1440,6 +1441,34 @@ methods (Static)
 			RobsReps(:,nn) = NIM.Spks2Robs( spksR((Rlocs(nn)+1):(Rlocs(nn+1)-1)), dt, NT );
 		end		
 	end
+	
+	function [Uindx,XVindx] = generate_XVfolds( NTXstim, Nfold, XVfolds )
+	%	Usage: [Uindx,XVindx] = generate_XVfolds( NTXstim, <Nfold>, <XVfolds> )
+	%	Generates Uindx and XVindx to use for fold-Xval.
+	%
+	%	INPUTS:
+	%		NTXstim = size(Xstim,1);  number of time steps in the stimulus
+	%		Nfold = number of folds (e.g., 5-fold). Default = 5
+	%		XVfolds = which folds to set aside for X-val. Can be more than 1. Default = in the middle (3 for 5)
+	%	OUTPUTS:
+	%		Uindx = indices of design matrix (e.g., X-stim) to use for model fitting
+	%		XVindx = indices of design matrix (e.g., X-stim) to use for cross-validation
+									
+		if (nargin < 3) || isempty(Nfold)
+			Nfold = 5;
+		end
+		if (nargin < 4) 
+			XVfolds = ceil(Nfold/2);
+		end
+
+		NT = NTXstim;
+		XVindx = [];
+		for nn = 1:length(XVfolds)
+			XVindx = cat(1, XVindx, (floor((XVfolds(nn)-1)*NT/Nfold+1):floor(XVfolds(nn)*NT/Nfold))' );
+		end
+		Uindx = setdiff((1:NT)',XVindx);
+	end
+	
 end
 
 %% ********************** Static Hidden Methods ***************************

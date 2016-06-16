@@ -194,7 +194,7 @@ switch optimizer %run optimization
 end
 [~,penGrad] = opt_fun(params);
 first_order_optim = max(abs(penGrad));
-if (first_order_optim > nim.opt_check_FO) && ~use_con % often first-order opt is not satisfied with fit constraints (added use_con)
+if (first_order_optim > nim.opt_check_FO) && ~use_con && (max(lambda_L1) == 0) % often first-order opt is not satisfied with fit constraints (added use_con)
 	warning( 'First-order optimality: %.3f, fit might not be converged.', first_order_optim );
 end
 

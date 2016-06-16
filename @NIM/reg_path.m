@@ -19,7 +19,7 @@ defaults.subs = 1:Nsubs;
 defaults.silent = 0;
 defaults.lambdaID = 'd2t';
 
-[~,parsed_options] = NIM.parse_varargin( varargin, {'slient','lambdaID','L2s','subs'}, defaults );
+[~,parsed_options,fit_options] = NIM.parse_varargin( varargin, {'silent','lambdaID','L2s','subs'}, defaults );
 targets = parsed_options.subs;
 silent = parsed_options.silent;
 
@@ -83,7 +83,7 @@ for tar = targets
 			end
 			
 			fitsaveM{nn} = regfit;
-			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
+			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx, fit_options{:} );
 			LLregs(nn) = LL-LLdata.nullLL;
 			if ~silent 
 	      fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
@@ -136,7 +136,7 @@ for tar = targets
 			end
 			fitsave{nn} = regfit;
 
-			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx );
+			[LL,~,~,LLdata] = regfit.eval_model( Robs, Xs, XVindx, fit_options{:} );
 			LLregs(nn) = LL-LLdata.nullLL;
 			if ~silent
 				fprintf( '  %8.2f: %f\n', L2s(nn), LLregs(nn) )
