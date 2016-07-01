@@ -19,7 +19,8 @@ defaults.subs = 1:Nsubs;
 defaults.silent = 0;
 defaults.lambdaID = 'd2t';
 
-[~,parsed_options,fit_options] = NIM.parse_varargin( varargin, {'silent','lambdaID','L2s','subs'}, defaults );
+[~,parsed_options,fit_options] = NIM.parse_varargin( varargin, ...
+    {'silent','lambdaID','lambdaid','L2s','l2s','subs','optim_params'}, defaults );
 targets = parsed_options.subs;
 silent = parsed_options.silent;
 
