@@ -799,7 +799,7 @@ methods
       
 		% PROCESS INPUTS
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin );
-		NIM.validate_parsed_options( parsed_options, {'gain_funs'} );
+		NIM.validate_parsed_options( parsed_options, {'gain_funs','fit_offsets'}, 0 );
 		gain_funs = []; % default has no gain_funs
 		if isfield( parsed_options, 'gain_funs' )
 			gain_funs = parsed_options.gain_funs;
@@ -1624,6 +1624,9 @@ methods (Static, Hidden)
 	% OUTPUTS:
 	%   arevalid: Boolean: true if all fields in parsed_struct are on the valid_list
 	
+		if nargin < 3
+			return_error = 1;
+		end
 		arevalid = 1;
 		if isempty(parsed_struct)
 			return
@@ -1638,7 +1641,7 @@ methods (Static, Hidden)
 		for nn = 1:length(invalids)
 			fprintf('\n  ''%s'' is not a valid option.\n', parsed_options{invalids(nn)} );
 		end
-		if nargin < 3
+		if return_error
 			error( 'Invalid input arguments.' )
 		else
 			arevalid = 0;
