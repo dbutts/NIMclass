@@ -594,8 +594,14 @@ methods
 			end
 			
 			% Use the regularization parameters from the most similar subunit if we have one, otherwise use default init
-			same_Xtarg = find([nim.subunits(:).Xtarg] == Xtargets(ii),1); %find any existing subunits with this same Xtarget
-			same_Xtarg_and_NL = same_Xtarg(strcmp(nim.get_NLtypes(same_Xtarg),NLtypes{ii})); %set that also have same NL type
+            if ~isempty(nim.subunits)
+                same_Xtarg = find([nim.subunits(:).Xtarg] == Xtargets(ii),1); %find any existing subunits with this same Xtarget
+                same_Xtarg_and_NL = same_Xtarg(strcmp(nim.get_NLtypes(same_Xtarg),NLtypes{ii})); %set that also have same NL type
+            else
+                same_Xtarg = [];
+                same_Xtarg_and_NL = [];
+            end
+            
 			if ~isempty(same_Xtarg_and_NL) 
 				default_lambdas = nim.subunits(same_Xtarg_and_NL(1)).reg_lambdas;
 			elseif ~isempty(same_Xtarg)
@@ -1599,7 +1605,7 @@ methods (Static, Hidden)
 			if ~ischar(flag_name) % if not a flag, it must be train_inds
 				if ~isempty(flag_name)
 					train_inds = flag_name;
-					modvarargin{end+1} = train_inds; % implicitly add to varargin
+					modvarargin{end+1} = train_inds; % implicitly add to modvarargin
 				end
 				j = j + 1; % only one argument here        
 			else
