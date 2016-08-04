@@ -1014,7 +1014,6 @@ methods
 		%set(gca,'YTick',[]);
 		title('Spiking NL','fontsize',8)
 	end
-
 	
 	function [] = display_spike_history( nim, varargin )
 	% Usage: [] = nim.display_spikingNL( varargin )
