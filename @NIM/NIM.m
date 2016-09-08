@@ -46,6 +46,7 @@ methods
 	nim = fit_NLparams( nim, Robs, Xstims, varargin );            % fit parameters of (parametric) upstream NL functions
 	nim = fit_weights( nim, Robs, Xstims, varargin );             % fit linear weights on each subunit
 	nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin );     % determine optimal regularization using cross-val data
+	nim = reg_path2( nim, Robs, Xs, Uindx, XVindx, varargin );     % determine optimal regularization using cross-val data
 	fig_handle = display_model( nim, Robs, Xstims, varargin );    % display current model
 	[] = display_model_dab( nim, Robs, Xstims, varargin );        % display current model (originally modified version)
 	[] = display_model_jmm( nim, Robs, Xstims, varargin );        % display current model (original version)
