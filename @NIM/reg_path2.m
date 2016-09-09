@@ -99,11 +99,11 @@ for tar = targets
 	      fprintf( '  %8.2f: %f\n', lambda, LLregs(Niter) )
 			end
 			
-			if Niter > 2
-				if (LLregs(Niter) < LLregs(Niter-1)) && (LLregs(Niter) < LLregs(Niter-2))
-					notdone = 0;
-				end
-			end
+%			if Niter > 2
+%				if (LLregs(Niter) < LLregs(Niter-1)) && (LLregs(Niter) < LLregs(Niter-2))
+%					notdone = 0;
+%				end
+%			end
 			% Check that magnitude of LL is not too big
 			if lambda == 0
 				lambda = 0.1;
