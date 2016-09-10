@@ -175,6 +175,9 @@ for ii = 1:Nfit_subs
 	%nim.subunits(fit_subs(ii)).weight = params(ii); %assign new filter values
 	nim.subunits(fit_subs(ii)).filtK = nim.subunits(fit_subs(ii)).filtK*params(ii); % incorporate weight directly into filter
 	nim.subunits(fit_subs(ii)).NLoffset = nim.subunits(fit_subs(ii)).NLoffset*params(ii); 
+	if strcmp(nim.subunits(fit_subs(ii)).NLtype,'nonpar')
+		nim.subunits(fit_subs(ii)).NLparams.TBx = nim.subunits(fit_subs(ii)).NLparams.TBx*params(ii); 
+	end
 end
 [LL,~,mod_internals,LL_data] = nim.eval_model( Robs, Xstims, 'gain_funs',gain_funs );
 nim = nim.set_subunit_scales( mod_internals.fgint ); % update filter scales
