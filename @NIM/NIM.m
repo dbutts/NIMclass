@@ -766,7 +766,8 @@ methods
 				case 'softplus'
 					TBy = log(1 + exp(nim.subunits(imod).NLparams(1)*(TBx + nim.subunits(imod).NLoffset)));
 				case 'nonpar'
-					fprintf('upstream NL already set as nonparametric\n');  
+					fprintf('upstream NL already set as nonparametric\n');
+					return
 				otherwise
 					error('Unsupported NL type'); 
 			end
@@ -840,7 +841,7 @@ methods
 		
 		pred_rate = nim.apply_spkNL(G + nim.spkNL.theta); % apply spiking NL
 		[LL,norm_fact] = nim.internal_LL(pred_rate,Robs); % compute LL
-		LL = LL/norm_fact; % normalize by spikes
+		LL = LL/norm_fact; % normalize by spikes (or time points for Gaussian noise distribution)
     
 		if nargout > 2 % if outputting model internals
 			mod_internals.G = G;
@@ -1130,11 +1131,11 @@ methods (Hidden)
       
 		switch nim.noise_dist
 			case 'poisson' % LL = Rlog(r) - r + C
-				LL = sum(Robs .* log(rPred) -rPred);
-				norm_fact = sum(Robs); % normalize by total nSpks
+				LL = sum(Robs .* log(rPred) - rPred);
+				norm_fact = sum(Robs); % normalize by total number of spks
 			case 'bernoulli' % LL = R*log(r) + (1-R)*log(1-r)
 				LL = nansum(Robs.*log(rPred) + (1-Robs).*log(1-rPred));
-				norm_fact = sum(Robs); % normalize by total nSpks
+				norm_fact = sum(Robs); % normalize by total number of spks
 			case 'gaussian' % LL = (r-R)^2 + c
 				LL = -sum((rPred - Robs).^2);
 				norm_fact = length(Robs); % normalize by number of time points 

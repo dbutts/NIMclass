@@ -194,7 +194,8 @@ switch optimizer %run optimization
 end
 [~,penGrad] = opt_fun(params);
 first_order_optim = max(abs(penGrad));
-if (first_order_optim > nim.opt_check_FO) && ~use_con && (max(lambda_L1) == 0) % often first-order opt is not satisfied with fit constraints (added use_con)
+% Warn if first-order opt is off range for typical spike data (but cancel if fit is different type -- see conditions)
+if (first_order_optim > nim.opt_check_FO) && ~use_con && (max(lambda_L1) == 0) && ~strcmp(nim.noise_dist,'gaussian') 
 	warning( 'First-order optimality: %.3f, fit might not be converged.', first_order_optim );
 end
 
