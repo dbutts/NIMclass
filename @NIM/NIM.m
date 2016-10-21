@@ -381,7 +381,7 @@ methods
     
 	function lambdas = get_reg_lambdas( nim, varargin )
 	% Usage: lambdas = nim.get_reg_lambdas( varargin )
-	% Gets regularizatoin lambda values of specified type from a set of nim subunits
+	% Gets regularization lambda values of specified type from a set of nim subunits
 	%
 	% INPUTS:
 	%   optional flags:
@@ -693,6 +693,9 @@ methods
 	%               relative to the underlying generating distribution
 	%     'n_bfs': Number of tent-basis functions to use 
 	%     'space_type': Use either 'equispace' for uniform bin spacing, or 'equipop' for equipopulated bins
+	%     'zeroX': which element of nonlin anchored to zero: 0 = center (default), 1 = edge, dep on monotonicity
+	%     'NLrange': if nonlinearity contrained to be within range. Default = [], One value assumes lower bound
+	%
 	% OUTPUTS: nim: updated nim object
     
 		Nsubs = length(nim.subunits);
@@ -704,13 +707,16 @@ methods
 		defaults.n_bfs = 25; % default number of tent basis functions
 		defaults.space_type = 'equispace'; % default uninimrm tent basis spacing
 		defaults.lambda_nld2 = 0; % default no smoothing on TB coefs
+		defaults.zeroX = 0;
+		defaults.NLrange = [];
 		
 		[~,parsed_inputs] = NIM.parse_varargin( varargin, {}, defaults );
 		subs = parsed_inputs.subs;
 
 		% Store NL tent-basis parameters
 		tb_params = struct( 'NLmon', parsed_inputs.NLmon, 'edge_p',parsed_inputs.edge_p, ...
-							'n_bfs',parsed_inputs.n_bfs, 'space_type',parsed_inputs.space_type );
+							'n_bfs',parsed_inputs.n_bfs, 'space_type',parsed_inputs.space_type, ...
+							'zeroX',parsed_inputs.zeroX, 'NLrange',parsed_inputs.NLrange );
 		for ii = parsed_inputs.subs % load the TB param struct into each subunit we're making nonpar
 			nim.subunits(ii).NLnonpar.TBparams = tb_params;
 		end
@@ -727,30 +733,33 @@ methods
 		
 		prev_NL_types = nim.get_NLtypes(); % current NL types   
 		for imod = parsed_inputs.subs     
-			nim.subunits(imod).NLtype = 'nonpar'; % set the subunit NL type to nonpar      
-			if strcmp(parsed_inputs.space_type,'equispace') % for equi-spaced bins        
-				left_edge = NIM.my_prctile( gint(:,imod), parsed_inputs.edge_p );        
-				right_edge = NIM.my_prctile( gint(:,imod), 100-parsed_inputs.edge_p );
-				if left_edge == right_edge % if the data is constant over this range (e.g. with a 0 filter), just make the xrange unity
-					left_edge = right_edge - 0.5;
-					right_edge = right_edge + 0.5;  
-				end
-				spacing = (right_edge - left_edge)/parsed_inputs.n_bfs;
-				% Adjust the edge locations so one of the bins lands at 0
-				left_edge = ceil(left_edge/spacing)*spacing;
-				right_edge = floor(right_edge/spacing)*spacing;
-				TBx = linspace( left_edge, right_edge, parsed_inputs.n_bfs ); % equispacing
-			elseif strcmp(parsed_inputs.space_type,'equipop') % for equi-populated binning
-				if std(gint(:,imod)) == 0  % subunit with constant output
-					TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,parsed_inputs.n_bfs); % do something sensible
-				else
-					TBx = NIM.my_prctile( gint(:,imod), linspace(parsed_inputs.edge_p,100-parsed_inputs.edge_p,parsed_inputs.n_bfs) )'; % equipopulated
-				end
-			end
-			% Set nearest tent basis to 0 so we can keep it fixed during fitting
-			[~,nearest] = min(abs(TBx));
-			TBx(nearest) = 0;
-
+			nim.subunits(imod).NLtype = 'nonpar'; % set the subunit NL type to nonpar  
+			nim.subunits(imod) = nim.subunits(imod).rescale_nonparX( Xstims );
+			TBx = nim.subunits(imod).NLnonpar.TBx;
+			
+% 			if strcmp(parsed_inputs.space_type,'equispace') % for equi-spaced bins        
+% 				left_edge = NIM.my_prctile( gint(:,imod), parsed_inputs.edge_p );        
+% 				right_edge = NIM.my_prctile( gint(:,imod), 100-parsed_inputs.edge_p );
+% 				if left_edge == right_edge % if the data is constant over this range (e.g. with a 0 filter), just make the xrange unity
+% 					left_edge = right_edge - 0.5;
+% 					right_edge = right_edge + 0.5;  
+% 				end
+% 				spacing = (right_edge - left_edge)/parsed_inputs.n_bfs;
+% 				% Adjust the edge locations so one of the bins lands at 0
+% 				left_edge = ceil(left_edge/spacing)*spacing;
+% 				right_edge = floor(right_edge/spacing)*spacing;
+% 				TBx = linspace( left_edge, right_edge, parsed_inputs.n_bfs ); % equispacing
+% 			elseif strcmp(parsed_inputs.space_type,'equipop') % for equi-populated binning
+% 				if std(gint(:,imod)) == 0  % subunit with constant output
+% 					TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,parsed_inputs.n_bfs); % do something sensible
+% 				else
+% 					TBx = NIM.my_prctile( gint(:,imod), linspace(parsed_inputs.edge_p,100-parsed_inputs.edge_p,parsed_inputs.n_bfs) )'; % equipopulated
+% 				end
+% 			end
+% 			% Set nearest tent basis to 0 so we can keep it fixed during fitting
+% 			[~,nearest] = min(abs(TBx));
+% 			TBx(nearest) = 0;
+			
 			% Initalize tent basis coefs   
 			switch prev_NL_types{imod}      
 				case 'lin'
@@ -773,7 +782,7 @@ methods
 			end
 			nim.subunits(imod).NLoffset = 0;
 			nim.subunits(imod).NLnonpar.TBy = TBy;
-			nim.subunits(imod).NLnonpar.TBx = TBx;
+			%nim.subunits(imod).NLnonpar.TBx = TBx;
 			nim.subunits(imod).reg_lambdas.nld2 = parsed_inputs.lambda_nld2;
 			nim.subunits(imod).TBy_deriv = nim.subunits(imod).get_TB_derivative(); % calculate derivative of Tent-basis coeffics
 		end	
@@ -974,47 +983,53 @@ methods
 	%
 	% Plot spiking nonlinearity in subplot panel specified by plotloc. Will only plot in presence of 
 	% total ouputs
+	%
 	% INPUTS:
 	%   G: the generating potential that the spiking nonlinearity acts on
 	%   Optional inputs:
 	%     None currently
 	
+		CUTOFF = 0.5; % percentile under which to not display G distribution (and plot nonlinearity)
+		
 		n_hist_bins = 80; % internal parameter determining histogram resolution
 
 		[G,parsed_options] = NIM.parse_varargin( varargin ); % first varargin must be G
 		assert((nargin > 1) && ~isempty(G), 'G-distribution required in order to plot spiking nonlinearity.' )
 
-		[Gdist_y,Gdist_x] = hist(G,n_hist_bins); % histogram the generating signal
+		left_edge = NIM.my_prctile( G, CUTOFF );        
+		right_edge = NIM.my_prctile( G, 100-CUTOFF );
+		[Gdist_y,Gdist_x] = hist( G, left_edge:((right_edge-left_edge)/n_hist_bins):right_edge ); % histogram the generating signal
     
-		% This is a hack to deal with cases where the threshold linear terms
-		% Create a min value of G
+		% This is a hack to deal with cases where the threshold linear terms (creates a max value of G that doesn't dwarf rest)
 		if Gdist_y(1) > 2*Gdist_y(2)
 			Gdist_y(1) = 1.5*Gdist_y(2);
 		end
 		
-		% Cut off extremely low values of g_dist on either side
-		minx = find(Gdist_y > max(Gdist_y)/50,1);
-		maxy = find(Gdist_y > max(Gdist_y)/50, 1, 'last' );
-		cur_xrange = Gdist_x([minx maxy]);
 		if strcmp(nim.spkNL.type,'logistic')
-			NLx = linspace(cur_xrange(1),cur_xrange(2) + diff(cur_xrange)/4,100);
-			cur_xrange = NLx([1 end]);
+			NLx = linspace( Gdist_x(1), Gdist_x(end) + (Gdist_x(end)-Gdist_x(1))/4,100 );
 		else
 			NLx = Gdist_x;
 		end
 
 		NLy = nim.apply_spkNL(NLx);
-		NLy = NLy/nim.stim_params(1).dt; %convert to correct firing rate units
-    
+		if ~strcmp(nim.spkNL.type,'lin')
+			NLy = NLy/nim.stim_params(1).dt; % convert to correct firing rate units
+		end
+		
 		plot(NLx,NLy,'b','LineWidth',1)
 		hold on
-		plot(Gdist_x,Gdist_y/max(Gdist_y)*max(NLy)/3*2,'r')
-		xlim(cur_xrange)
+		plot(Gdist_x,Gdist_y/max(Gdist_y)*max(NLy)/4*3,'r')
+		xlim([Gdist_x(1) Gdist_x(end)])
 		ylim([min([0 min(NLy)]) max(NLy)]);
 		xlabel('g')
-		ylabel('Firing rate','fontsize',8);
+		
+		if strcmp(nim.spkNL.type,'lin')
+			ylabel('Output','fontsize',12);
+		else			
+			ylabel('Firing rate (Hz)','fontsize',12);
+		end
 		%set(gca,'YTick',[]);
-		title('Spiking NL','fontsize',8)
+		title('Spiking NL','fontsize',12)
 	end
 	
 	function [] = display_spike_history( nim, varargin )

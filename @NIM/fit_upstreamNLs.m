@@ -67,45 +67,49 @@ if ~iscell(Xstims)
 	tmp = Xstims; clear Xstims
 	Xstims{1} = tmp;
 end
-nim.check_inputs(Robs,Xstims,train_inds,gain_funs); %make sure input format is correct
+nim.check_inputs(Robs,Xstims,train_inds,gain_funs); % make sure input format is correct
 
-spkhstlen = nim.spk_hist.spkhstlen; %length of spike history filter
+spkhstlen = nim.spk_hist.spkhstlen; % length of spike history filter
 if parsed_options.fit_spk_hist; assert(spkhstlen > 0,'no spike history term initialized!'); end;
 if parsed_options.fit_spk_hist
 	Xspkhst = nim.create_spkhist_Xmat( Robs );
 else
 	Xspkhst = [];
 end
-if ~isnan(train_inds) %if specifying a subset of indices to train model params
+if ~isnan(train_inds) % if specifying a subset of indices to train model params
 	for nn = 1:length(Xstims)
-		Xstims{nn} = Xstims{nn}(train_inds,:); %grab the subset of indices for each stimulus element
+		Xstims{nn} = Xstims{nn}(train_inds,:); % grab the subset of indices for each stimulus element
 	end
 	Robs = Robs(train_inds);
 	if ~isempty(Xspkhst); Xspkhst = Xspkhst(train_inds,:); end;
 	if ~isempty(gain_funs); gain_funs = gain_funs(train_inds,:); end;
 end
-NT = length(Robs); %number of time points
+NT = length(Robs); % number of time points
 
-Nfit_subs = length(fit_subs); %number of targeted subunits
+Nfit_subs = length(fit_subs); % number of targeted subunits
 if Nfit_subs == 0
 	warning('No subunits to fit!');
 	return
 end
-non_fit_subs = setdiff(1:Nsubs,fit_subs); %elements of the model held constant
+non_fit_subs = setdiff(1:Nsubs,fit_subs); % elements of the model held constant
 
-n_TBs = arrayfun(@(x) length(x.NLnonpar.TBx),nim.subunits(fit_subs));  %get the number of TBs for each subunit
+n_TBs = arrayfun(@(x) length(x.NLnonpar.TBx),nim.subunits(fit_subs));  % get the number of TBs for each subunit
 assert(length(unique(n_TBs)) == 1,'Have to have same number of tent-bases for each subunit'); 
 n_TBs = unique(n_TBs);
 
-nontarg_g = nim.process_stimulus(Xstims,non_fit_subs,gain_funs); %get output of nontarget subunits
-if ~parsed_options.fit_spk_hist && spkhstlen > 0 %add in spike history filter output, if we're not fitting it
-    nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
+nontarg_g = nim.process_stimulus(Xstims,non_fit_subs,gain_funs); % get output of nontarget subunits
+if ~parsed_options.fit_spk_hist && spkhstlen > 0 % add in spike history filter output, if we're not fitting it
+	nontarg_g = nontarg_g + Xspkhst*nim.spk_hist.coefs(:);
 end
 
 % COMPUTE NEW X-MATRIX OUT OF TENT-BASIS OUTPUTS
 XNL = zeros(NT,Nfit_subs*n_TBs); %initialize X matrix which is for the NL BFs of each module
 for ii = 1:Nfit_subs %for each module
 	cur_sub = fit_subs(ii);
+
+	% Rescale X-axis to be appropriate for filter
+	nim.subunits(cur_sub) = nim.subunits(cur_sub).rescale_nonparX( Xstims );
+	
 	gint = Xstims{nim.subunits(cur_sub).Xtarg}*nim.subunits(cur_sub).filtK;
 	% The output of the current model's internal filter projected onto the tent basis representation
 	if isempty(gain_funs)
@@ -150,6 +154,18 @@ if parsed_options.fit_spk_hist
 		use_con = 1;
 	end
 end
+% Add NLrange constraints
+for ii = 1:Nfit_subs
+	if ~isempty(nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLrange)
+		NLrange = nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLrange;
+		cur_range = (ii-1)*n_TBs + (1:n_TBs);
+		LB(cur_range) = NLrange(1);
+		if length(NLrange) > 1
+			UB(cur_range) = NLrange(2);
+		end
+		use_con = 1;
+	end
+end
 
 % Process NL monotonicity constraints, and constraints that the tent basis
 % centered at 0 should have coefficient of 0 (eliminate y-shift degeneracy)
@@ -167,8 +183,16 @@ if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if
 			end
 		end
 		% Constrain the 0-coefficient to be 0
-		[~,zp] = find(nim.subunits(fit_subs(ii)).NLnonpar.TBx == 0);
-		assert(~isempty(zp),'Need one TB to be centered at 0');
+		if (nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon == 0) || (nim.subunits(fit_subs(ii)).NLnonpar.TBparams.zeroX == 0)
+			[~,zp] = find(nim.subunits(fit_subs(ii)).NLnonpar.TBx == 0);
+			assert(~isempty(zp),'Need one TB to be centered at 0');
+		else
+			if nim.subunits(fit_subs(ii)).NLnonpar.TBparams.NLmon > 0
+				zp = 1; %anchor to zero on left
+			else
+				zp = length(cur_range);  % anchor to zero on the right
+			end
+		end
 		cur_vec = zvec;
 		cur_vec(cur_range(zp)) = 1;
 		Aeq = cat(1,Aeq,cur_vec);

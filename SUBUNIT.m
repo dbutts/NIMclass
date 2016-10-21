@@ -63,24 +63,25 @@ methods
       
 		assert( ismember(subunit.NLtype,subunit.allowed_subunitNLs), 'invalid NLtype!' );
                   
-		% if using an NLtype that has parameters, check that input      
-		% parameter vector is the right size, or initialize to default
-		% values      
+		% if using an NLtype that has parameters, check that input parameter vector is the right size, 
+		% or initialize to default values      
 		switch subunit.NLtype
-			case {'lin','quad','rectlin','exp'} %these NLs dont have any shape parameters
+			case {'lin','quad','rectlin','exp'} % these NLs dont have any shape parameters
 				assert(isempty(NLparams),sprintf('%s NL type has no shape parameters',subunit.NLtype));       
 			case 'softplus'        
 				if isempty(NLparams)      
-					NLparams = [1]; %defines beta in f(x) = log(1 + exp(beta*x))        
+					NLparams = [1]; % defines beta in f(x) = log(1 + exp(beta*x))        
 				else
 					assert(length(NLparams) == 1,'invalid NLparams vector');    
 				end	
 			case 'rectpow'   
 				if isempty(NLparams)          
-					NLparams = [2]; %defines gamma in f(x) = x^gamma iff x >= 0          
+					NLparams = [2]; % defines gamma in f(x) = x^gamma iff x >= 0          
 				else
 					assert(length(NLparams) == 1,'invalid NLparams vector');    
 				end		
+			case 'nonpar'
+				error('Need to separately initialize non-parametric nonlinearity after creating new subunit.')
 		end
 		subunit.NLparams = NLparams;	
 		subunit.NLnonpar.TBx = [];		
@@ -142,7 +143,7 @@ methods
 		end
 	end
 		
-	function sub_deriv = apply_NL_deriv(subunit,gen_signal)
+	function sub_deriv = apply_NL_deriv( subunit, gen_signal )
 	% Usage: sub_deriv = apply_NL_deriv( subunit, gen_signal )
 	%
 	% Applies derivative of subunit NL to input gen_signal          
@@ -573,6 +574,40 @@ methods (Hidden)
 			gout(:,n) = SUBUNIT.get_tentbasis_output(gin, subunit.NLnonpar.TBx(n), [subunit.NLnonpar.TBx(n-1) subunit.NLnonpar.TBx(n+1)] );       
 		end
 	end
+	
+	function sub_out = rescale_nonparX( sub, Xstims )
+	% Usage: sub_out = sub.rescale_nonparX( Xstims )
+		
+		gint = Xstims{sub.Xtarg}*sub.filtK;
+			
+		if strcmp(sub.NLnonpar.TBparams.space_type,'equispace') % for equi-spaced bins        
+			left_edge = NIM.my_prctile( gint, sub.NLnonpar.TBparams.edge_p );        
+			right_edge = NIM.my_prctile( gint, 100-sub.NLnonpar.TBparams.edge_p );
+			if left_edge == right_edge % if the data is constant over this range (e.g. with a 0 filter), just make the xrange unity
+				left_edge = right_edge - 0.5;
+				right_edge = right_edge + 0.5;  
+			end
+			spacing = (right_edge - left_edge)/sub.NLnonpar.TBparams.n_bfs;
+			% Adjust the edge locations so one of the bins lands at 0
+			left_edge = ceil(left_edge/spacing)*spacing;
+			right_edge = floor(right_edge/spacing)*spacing;
+			TBx = linspace( left_edge, right_edge, sub.NLnonpar.TBparams.n_bfs ); % equispacing
+		elseif strcmp(sub.NLnonpar.TBparams.space_type,'equipop') % for equi-populated binning
+			if std(gint(:,imod)) == 0  % subunit with constant output
+				TBx = mean(gint(:,imod)) + linspace(-0.5,0.5,parsed_inputs.n_bfs); % do something sensible
+			else
+				TBx = NIM.my_prctile( gint, linspace(sub.NLnonpar.TBparams.edge_p,100-sub.NLnonpar.TBparams.edge_p,sub.NLnonpar.TBparams.n_bfs) )'; % equipopulated
+			end
+		end
+		
+		% Set nearest tent basis to 0 so we can keep it fixed during fitting
+		[~,nearest] = min(abs(TBx));
+		TBx(nearest) = 0;
+			
+		sub_out = sub;
+		sub_out.NLnonpar.TBx = TBx;
+			
+	end % method
 	
 end
 
