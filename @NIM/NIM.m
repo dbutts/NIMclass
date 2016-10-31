@@ -812,7 +812,6 @@ methods
 	%       nullLL: LL of constant-rate model
 
 		Nsubs = length(nim.subunits); % number of subunits
-		%NT = length(Robs); % number of time points
       
 		% PROCESS INPUTS
 		[eval_inds,parsed_options] = NIM.parse_varargin( varargin );
@@ -826,10 +825,10 @@ methods
 			tmp = Xstims; clear Xstims
 			Xstims{1} = tmp;
 		end
-		if isempty(Robs); Robs = zeros(size(Xstims{1},1),1); end % if empty, make null list
-		if size(Robs,2) > size(Robs,1); Robs = Robs'; end; % make Robs a column vector
-		nim.check_inputs(Robs,Xstims,eval_inds,gain_funs); % make sure input format is correct
-		if nim.spk_hist.spkhstlen > 0 % add in spike history term if needed
+		if isempty(Robs); Robs = zeros(size(Xstims{1},1),1); end  % if empty, make null list
+		if size(Robs,2) > size(Robs,1); Robs = Robs'; end;  % make Robs a column vector
+		nim.check_inputs(Robs,Xstims,eval_inds,gain_funs);  % make sure input format is correct
+		if nim.spk_hist.spkhstlen > 0  % add in spike history term if needed
 			Xspkhst = nim.create_spkhist_Xmat( Robs );
 		else			
 			Xspkhst = [];  
@@ -843,13 +842,13 @@ methods
 			if ~isempty(Xspkhst); Xspkhst = Xspkhst(eval_inds,:); end;
 			if ~isempty(gain_funs); gain_funs = gain_funs(eval_inds,:); end;
 		end
-		[G, fgint, gint] = nim.process_stimulus(Xstims,1:Nsubs,gain_funs);
+		[G, fgint, gint] = nim.process_stimulus( Xstims, 1:Nsubs, gain_funs );
 		if nim.spk_hist.spkhstlen > 0 % add in spike history term if needed
 			G = G + Xspkhst*nim.spk_hist.coefs(:);  
 		end
 		
-		pred_rate = nim.apply_spkNL(G + nim.spkNL.theta); % apply spiking NL
-		[LL,norm_fact] = nim.internal_LL(pred_rate,Robs); % compute LL
+		pred_rate = nim.apply_spkNL( G + nim.spkNL.theta ); % apply spiking NL
+		[LL,norm_fact] = nim.internal_LL( pred_rate, Robs ); % compute LL
 		LL = LL/norm_fact; % normalize by spikes (or time points for Gaussian noise distribution)
     
 		if nargout > 2 % if outputting model internals

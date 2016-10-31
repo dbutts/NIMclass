@@ -1,4 +1,4 @@
-function nim = fit_upstreamNLs(nim, Robs, Xstims, varargin)
+function nim = fit_upstreamNLs( nim, Robs, Xstims, varargin )
 % Usage: nim = nim.fit_upstreamNLs(Robs, Xstims, <train_inds>, varargin)
 % Optimizes the upstream NLs (in terms of tent-basis functions)
 %
@@ -167,10 +167,10 @@ for ii = 1:Nfit_subs
 	end
 end
 
-% Process NL monotonicity constraints, and constraints that the tent basis
-% centered at 0 should have coefficient of 0 (eliminate y-shift degeneracy)
+% Process NL monotonicity constraints, and constraints that the tent basis centered at 0 should have 
+% coefficient of 0 (eliminate y-shift degeneracy)
 A = []; b = [];
-if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) %if any of our target nonpar subunits have a monotonicity constraint
+if any(arrayfun(@(x) x.NLnonpar.TBparams.NLmon,nim.subunits(fit_subs)) ~= 0) % if any of our target nonpar subunits have a monotonicity constraint
 	zvec = zeros(1,length(init_params)); % indices of tent-bases centered at 0
 	for ii = 1:Nfit_subs
 		cur_range = (ii-1)*n_TBs + (1:n_TBs);
@@ -227,7 +227,7 @@ fit_opts = struct('fit_spk_hist', parsed_options.fit_spk_hist, 'fit_subs',fit_su
 
 opt_fun = @(K) internal_LL_NLs(nim,K, Robs, XNL, Xspkhst, nontarg_g, Tmat, fit_opts);
 
-% Run optimization
+%% Run optimization
 switch optimizer 
 	case 'L1General2_PSSas'
 		[params] = L1General2_PSSas(opt_fun,init_params,lambda_L1,optim_params);
@@ -242,7 +242,8 @@ switch optimizer
 	case 'fminsearch'
 		params = fminsearch(opt_fun,init_params,optim_params);
 end
-[~,penGrad] = opt_fun(params);
+
+[~,penGrad] = opt_fun( params );
 first_order_optim = max(abs(penGrad));
 if (first_order_optim > nim.opt_check_FO) && ~use_con % often first-order opt is not satisfied with fit constraints (added use_con)
 	warning( 'First-order optimality %.3f, fit might not be converged.', first_order_optim );
@@ -318,8 +319,8 @@ pred_rate = nim.apply_spkNL(G);
 %residual = LL'[r].*F'[g]
 residual = nim.internal_LL_deriv(pred_rate,Robs) .* nim.apply_spkNL_deriv(G, pred_rate < nim.min_pred_rate);
 
-penLLgrad = zeros(length(params),1); %initialize LL gradient
-penLLgrad(1:Nfit_subs*n_TBs) = residual'*XNL; %gradient for tent-basis coefs
+penLLgrad = zeros(length(params),1); % initialize LL gradient
+penLLgrad(1:Nfit_subs*n_TBs) = residual'*XNL; % gradient for tent-basis coefs
 penLLgrad(end) = sum(residual);% Calculate derivatives with respect to constant term (theta)
 
 % Calculate derivative with respect to spk history filter

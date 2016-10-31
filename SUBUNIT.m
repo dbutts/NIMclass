@@ -256,7 +256,9 @@ methods
 				subunit.display_spatial_filter( dims, modvarargin{:} );
 			else
 				k = reshape( subunit.get_filtK(), dims(1:2) );
-				imagesc( 1:dims(2),1:dims(1), k, max(abs(k(:)))*[-1 1] )
+				if max(abs(k(:))) > 0
+					imagesc( 1:dims(2),1:dims(1), k, max(abs(k(:)))*[-1 1] )
+				end
 				if isfield(parsed_options,'colormap')
 					colormap(parsed_options.colormap);
 				else
@@ -335,7 +337,9 @@ methods
 		end
 
 		L = max(subunit.get_filtK())-min(subunit.get_filtK());
-		
+		if L == 0
+			L = 0.1; % just so not returning errors
+		end
 		if prod(dims(2:3)) == 1
 			% then 1-dimensional filter
 			k = subunit.get_filtK();
@@ -352,6 +356,7 @@ methods
 		hold on
 		plot([ts(1) ts(end)],[0 0],'k--')
 		
+
 		axis([min(ts) max(ts) min(subunit.filtK)+L*[-0.1 1.1]])
 		if isfield(parsed_options,'time_rev')
 			box on
