@@ -161,7 +161,7 @@ methods
                     
 			case 'rectpow' %f'(x) = gamma*x^(gamma-1) iff x > =0; else 0
 				sub_deriv = subunit.NLparams(1)*gen_signal.^(subunit.NLparams(1)-1);
-				sub_deriv(gen_signal < 0) = 0;
+				sub_deriv(gen_signal <= 0) = 0;
 
 			case 'exp' %f'(x) = exp(x)
 				sub_deriv = exp(gen_signal);

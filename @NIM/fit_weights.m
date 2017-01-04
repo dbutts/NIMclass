@@ -7,6 +7,7 @@ function nim = fit_weights( nim, Robs, Xstims, varargin )
 %   Xstims: cell array of stimuli
 %   <train_inds>: index values of data on which to fit the model [default to all indices in provided data]
 %   optional flags:
+%     ('sub_weight',val): set this flag to 1 to put new weights into subunit output (weights) rather than filter
 %     ('fit_subs',fit_subs): set of subunits whos filters we want to optimize [default is all]
 %     ('gain_funs',gain_funs): matrix of multiplicative factors, one column for each subunit
 %     ('optim_params',optim_params): struct of desired optimization parameters, can also
@@ -27,7 +28,8 @@ defaults.fit_spk_hist = nim.spk_hist.spkhstlen > 0; % default is to fit the spkN
 defaults.fit_offsets = false(1,Nsubs); % default is NOT to fit the offset terms
 defaults.lambda_L1 = 0; % default is no L1 penalty
 defaults.silent = 0; % default is to display optimization output
-option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_L1','fit_offsets'}; % list of possible option strings
+defaults.sub_weight = 0;
+option_list = {'subs','gain_funs','silent','fit_spk_hist','lambda_L1','fit_offsets','sub_weight'}; % list of possible option strings
 
 % Over-ride any defaults with user-specified values
 OP_loc = find(strcmp(varargin,'optim_params')); %find if optim_params is provided as input
@@ -173,10 +175,14 @@ if parsed_options.fit_spk_hist
 end
 for ii = 1:Nfit_subs
 	%nim.subunits(fit_subs(ii)).weight = params(ii); %assign new filter values
-	nim.subunits(fit_subs(ii)).filtK = nim.subunits(fit_subs(ii)).filtK*params(ii); % incorporate weight directly into filter
-	nim.subunits(fit_subs(ii)).NLoffset = nim.subunits(fit_subs(ii)).NLoffset*params(ii); 
-	if strcmp(nim.subunits(fit_subs(ii)).NLtype,'nonpar')
-		nim.subunits(fit_subs(ii)).NLparams.TBx = nim.subunits(fit_subs(ii)).NLparams.TBx*params(ii); 
+	if parsed_options.sub_weight == 0
+		nim.subunits(fit_subs(ii)).filtK = nim.subunits(fit_subs(ii)).filtK*params(ii); % incorporate weight directly into filter
+		nim.subunits(fit_subs(ii)).NLoffset = nim.subunits(fit_subs(ii)).NLoffset*params(ii); 
+		if strcmp(nim.subunits(fit_subs(ii)).NLtype,'nonpar')
+			nim.subunits(fit_subs(ii)).NLparams.TBx = nim.subunits(fit_subs(ii)).NLparams.TBx*params(ii); 
+		end
+	else
+		nim.subunits(fit_subs(ii)).weight = nim.subunits(fit_subs(ii)).weight * params(ii);
 	end
 end
 [LL,~,mod_internals,LL_data] = nim.eval_model( Robs, Xstims, 'gain_funs',gain_funs );

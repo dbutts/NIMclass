@@ -241,7 +241,7 @@ methods
 		for ii = 1:nSubs %loop initializing subunits (start from last to initialize object array)
 			stimD = prod(nim.stim_params(Xtargets(ii)).dims); %dimensionality of the current filter
 			if isempty(init_filts{ii})
-				init_filt = randn(stimD,1)/stimD; %initialize fitler coefs with gaussian noise
+				init_filt = randn(stimD,1)/stimD; % initialize fitler coefs with gaussian noise
 			else
 				init_filt = init_filts{ii};
 			end
