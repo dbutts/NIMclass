@@ -150,7 +150,8 @@ end
 optim_params = nim.set_optim_params( optimizer, optim_params, parsed_options.silent );
 if ~parsed_options.silent; fprintf('Running optimization using %s\n\n',optimizer); end;
 
-switch optimizer %run optimization
+% Run optimization
+switch optimizer
 	case 'L1General_PSSas'
 		[params] = L1General2_PSSas(opt_fun,init_params,lambda_L1,optim_params);
 	case 'minFunc'
@@ -176,6 +177,11 @@ end
 for ii = 1:Nfit_subs
 	%nim.subunits(fit_subs(ii)).weight = params(ii); %assign new filter values
 	if parsed_options.sub_weight == 0
+		if params(ii) < 0
+			% then absorb into weight
+			nim.subunits(fit_subs(ii)).weight = -1;
+			params(ii) = -params(ii);
+		end
 		nim.subunits(fit_subs(ii)).filtK = nim.subunits(fit_subs(ii)).filtK*params(ii); % incorporate weight directly into filter
 		nim.subunits(fit_subs(ii)).NLoffset = nim.subunits(fit_subs(ii)).NLoffset*params(ii); 
 		if strcmp(nim.subunits(fit_subs(ii)).NLtype,'nonpar')

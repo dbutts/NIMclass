@@ -18,7 +18,7 @@ properties
 end
 	
 properties (Hidden)
-	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','exp','nonpar'}; % set of subunit NL functions currently implemented
+	allowed_subunitNLs = {'lin','quad','rectlin','rectpow','softplus','exp','sigmoid','nonpar'}; % set of subunit NL functions currently implemented
 	TBy_deriv;   % internally stored derivative of tent-basis NL
 	scale;       % SD of the subunit output derived from most-recent fit
 end
@@ -120,6 +120,9 @@ methods
 				sub_out = exp(gen_signal);         
 				sub_out(gen_signal < 0) = 0;            
 
+			case 'sigmoid'
+				sub_out = 1./(1+exp(-gen_signal));
+				
 			case 'softplus' %f(x;beta) = log(1 + exp(beta*x))
 				max_g = 50; %to prevent numerical overflow
 				gint = subunit.NLparams(1)*gen_signal; %beta*gen_signal            
@@ -166,6 +169,10 @@ methods
 			case 'exp' %f'(x) = exp(x)
 				sub_deriv = exp(gen_signal);
 
+			case 'sigmoid' %f'(x) = exp(-x)/(1 + exp(-x)^2)
+				expng = exp(-gen_signal);
+				sub_deriv = expng./((1 + expng).^2);
+
 			case 'softplus' %f'(x) = beta*exp(beta*x)/(1 + exp(beta*x))
 				max_g = 50; % to prevent numerical overflow
 				gint = subunit.NLparams(1)*gen_signal; % beta*gen_signal
@@ -184,8 +191,8 @@ methods
 	function NLgrad = NL_grad_param( subunit, x )
 	% Usage: NLgrad = subunit.NL_grad_param( x )
 	%
-	% Calculates gradient of upstream NL wrt vector of parameters at input
-	% value x. Note, parameter vector is of the form [NLparams NLoffset]
+	% Calculates gradient of upstream NL wrt vector of parameters at input value x. 
+	% Note, parameter vector is of the form [NLparams NLoffset]
 	
 		NT = length(x);        
 		NLgrad = zeros(NT,length(subunit.NLparams));
@@ -198,7 +205,7 @@ methods
 			case 'rectpow' %f(x;gamma,c) = (x+c)^gamma iff x >= -c; else 0
 				NLgrad(:,1) = (x + 0).^subunit.NLparams(1) .* log(x + 0); %df/dgamma      
 				NLgrad(:,2) = subunit.NLparams(1)*(x + 0).^(subunit.NLparams(1) - 1); %df/dc
-				NLgrad(x < 0,:) = 0;
+				NLgrad(x <= 0,:) = 0;
 
 			case 'exp'
 				NLgrad = exp(x+subunit.NLoffset);
