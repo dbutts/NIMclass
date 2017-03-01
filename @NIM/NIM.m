@@ -579,7 +579,7 @@ methods
 			end
 			j = j + 2;
 		end		
-		if size(reg_vals,1) == 1 %if reg_vals are specified as scalars, assume we want the same for all subuntis    
+		if size(reg_vals,1) == 1 % if reg_vals are specified as scalars, assume we want the same for all subuntis    
 			reg_vals = repmat(reg_vals,nSubs,1);      
 		end
 		
@@ -595,13 +595,13 @@ methods
 			end
 			
 			% Use the regularization parameters from the most similar subunit if we have one, otherwise use default init
-            if ~isempty(nim.subunits)
-                same_Xtarg = find([nim.subunits(:).Xtarg] == Xtargets(ii),1); %find any existing subunits with this same Xtarget
-                same_Xtarg_and_NL = same_Xtarg(strcmp(nim.get_NLtypes(same_Xtarg),NLtypes{ii})); %set that also have same NL type
-            else
-                same_Xtarg = [];
-                same_Xtarg_and_NL = [];
-            end
+			if ~isempty(nim.subunits)
+				same_Xtarg = find([nim.subunits(:).Xtarg] == Xtargets(ii),1); % find any existing subunits with this same Xtarget
+				same_Xtarg_and_NL = same_Xtarg(strcmp(nim.get_NLtypes(same_Xtarg),NLtypes{ii})); % set that also have same NL type
+			else
+				same_Xtarg = [];
+				same_Xtarg_and_NL = [];  
+			end
             
 			if ~isempty(same_Xtarg_and_NL) 
 				default_lambdas = nim.subunits(same_Xtarg_and_NL(1)).reg_lambdas;
@@ -616,7 +616,7 @@ methods
 			if ~isempty(default_lambdas)
 				nim.subunits(end).reg_lambdas = default_lambdas;
 			end
-			for jj = 1:length(reg_types) %add in user-specified regularization parameters
+			for jj = 1:length(reg_types) % add in user-specified regularization parameters
 				assert(reg_vals(ii,jj) >= 0,'regularization hyperparameters must be non-negative');
 				nim.subunits(end).reg_lambdas.(reg_types{jj}) = reg_vals(ii,jj);
 			end
