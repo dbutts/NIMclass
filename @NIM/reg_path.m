@@ -1,6 +1,8 @@
 function nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin )
 % Usage: nim = reg_path( nim, Robs, Xs, Uindx, XVindx, varargin )
 %
+% Optional inputs: {'silent','lambdaID','lambdaid','L2s','l2s','subs','optim_params'}
+%
 % Old function
 % [bestfit,L2best] = NMM_RegPath( fit0, Robs, Xs, Uindx, XVindx, targets, L2s, lambdaID, fitparams )
 %
@@ -18,17 +20,19 @@ Nsubs = length(nim.subunits);
 defaults.subs = 1:Nsubs;
 defaults.silent = 0;
 defaults.lambdaID = 'd2t';
+defaults.L2s = [];
 
 [~,parsed_options,fit_options] = NIM.parse_varargin( varargin, ...
     {'silent','lambdaID','lambdaid','L2s','l2s','subs','optim_params'}, defaults );
 targets = parsed_options.subs;
+assert(all(ismember(targets,1:Nsubs)),'invalid target subunits specified');
 silent = parsed_options.silent;
+%L2s = parsed_options.L2s;
+%lambdaID = parsed_options.lambdaID;
 
 modvarargin{1} = Uindx;
 modvarargin{2} = 'silent'; % to pass into subfunctions
 modvarargin{3} = 1;
-
-%targets = parsed_options.subs;
 
 modcounter = 4; j = 1;
 while j <= length(varargin)
@@ -61,7 +65,8 @@ end
 
 % Add targets to modvarargin
 modvarargin{modcounter} = 'subs';
-modcounter = modcounter + 1;
+modvarargin{modcounter+1} = targets;
+%modcounter = modcounter + 2;
 
 for tar = targets
 	if isempty(L2s)  
@@ -70,12 +75,13 @@ for tar = targets
 		if ~silent 
 			fprintf( 'Order-of-magnitude L%c reg path: target = %d\n', regchar, tar )
 		end		
+		
 		LLregs = zeros(length(L2s),1);
 		for nn = 1:length(L2s)
 			regfit = nim.set_reg_params( 'subs', tar, lambdaID, L2s(nn) );
 			
 			% Only refit specific target
-			modvarargin{modcounter} = tar;
+			%modvarargin{modcounter} = tar;
 			
 			if strcmp( lambdaID, 'nld2' )
 				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin{:} );
@@ -153,12 +159,12 @@ for tar = targets
 		
 		%% Use L2 list estalished in function call
 		if ~silent
-			fprintf( 'L%c reg path (%d): target = %d', regchar, Nreg, tar )
+			fprintf( 'L%c reg path (%d): target = %d\n', regchar, Nreg, tar )
 		end
 		LLregs = zeros(Nreg,1);
-
 		for nn = 1:length(L2s)
-			regfit = nim.set_reg_params( 'sub_inds', tar, lambdaID, L2s(nn) );
+			
+			regfit = nim.set_reg_params( 'subs', tar, lambdaID, L2s(nn) );
 			
 			if strcmp( lambdaID, 'nld2' )
 				regfit = regfit.fit_upstreamNLs( Robs, Xs, modvarargin{:} );

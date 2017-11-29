@@ -1,20 +1,20 @@
 function Tmat = create_Tikhonov_matrix(stim_params, reg_type)
-%
-% Tmat = create_Tikhonov_matrix(stim_params, direction, order)
-%
+% 
+% Usage: Tmat = create_Tikhonov_matrix(stim_params, direction, order)
+% 
 % Creates a matrix specifying a an L2-regularization operator of the form
 % ||T*k||^2. Currently only supports second derivative/Laplacian operations
-%
+% 
 % INPUTS:
 %     stim_params: parameter struct associated with the target stimulus.
 %             must contain .dims field specifying the number of stimulus elements along each dimension
 %             <.boundary_conds> specifies boundary conditions: Inf is free boundary, 0 is tied to 0, and -1 is periodic
 %             <.split_pts> specifies an 'internal boundary' over which we dont want to smooth. [direction split_ind split_bnd]
 %       direction: direction of the derivative relative to the stimulus dimensions. e.g. 1 is along the first dim, 2 is along the second, [1 2] is a laplacian
-%
+% 
 % OUTPUTS:
 %     Tmat: sparse matrix specifying the desired Tikhonov operation
-%
+% 
 % The method of computing sparse differencing matrices used here is adapted from
 % Bryan C. Smith's and Andrew V. Knyazev's function "laplacian", available
 % here: http://www.mathworks.com/matlabcentral/fileexchange/27279-laplacian-in-1d-2d-or-3d

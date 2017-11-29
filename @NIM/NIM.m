@@ -41,6 +41,8 @@ end
 %% METHODS DEFINED IN SEPARATE FILES
 methods
 	nim = fit_filters( nim, Robs, Xstims, varargin );             % filter model stim-filters 
+	%[bnims,LLs] = fit_filters_boost( nim, Robs, Xstims, varargin );             % filter model stim-filters 
+	%nim = fit_filters_boost_sub( nim, Robs, Xstims, varargin );             % filter model stim-filters 
 	nim = fit_upstreamNLs( nim, Robs, Xstims, varargin );         % fit model upstream NLs
 	nim = fit_spkNL( nim, Robs, Xstims, varargin );               % fit parameters of spkNL function
 	nim = fit_NLparams( nim, Robs, Xstims, varargin );            % fit parameters of (parametric) upstream NL functions
@@ -611,7 +613,8 @@ methods
 				default_lambdas = [];  
 			end
 			
-			nim.subunits = cat(1,nim.subunits,SUBUNIT(init_filt, mod_signs(ii), NLtypes{ii},Xtargets(ii),NLparams{ii})); %add new subunit
+			% Add new subunit
+			nim.subunits = cat(1, nim.subunits(:), SUBUNIT(init_filt, mod_signs(ii), NLtypes{ii},Xtargets(ii),NLparams{ii}) ); 
            
 			if ~isempty(default_lambdas)
 				nim.subunits(end).reg_lambdas = default_lambdas;
@@ -631,7 +634,7 @@ methods
 	%   optional flags:
 	%     init_spacing: Initial spacing (in time bins) of piecewise constant 'basis functions' (default = 1)
 	%     doubling_time: Make bin spacing logarithmically increasing, with given doubling time (default no doubling)
-	%     negCon: If flag is included, constrain spike history filter coefs to be non-positive (default false)
+	%     negcon: If flag is included, constrain spike history filter coefs to be non-positive (default false)
 	% OUTPUTS: nim: new nim object
 
 		% Default inputs
@@ -860,7 +863,7 @@ methods
 		if nargout > 3  % if we want more detailed model evaluation info, create an LL_data struct
 			LL_data.LL = LL;
 			[filt_penalties,NL_penalties] = nim.get_reg_pen(); % get regularization penalty for each subunit
-			LL_data.filt_pen = sum(filt_penalties)/norm_fact; % normalize by number of spikes
+			LL_data.filt_pen = sum(filt_penalties); %/norm_fact; % normalize by number of spikes
 			LL_data.NL_pen = sum(NL_penalties)/norm_fact;
 			avg_rate = mean(Robs);
 			null_prate = ones(length(Robs),1)*avg_rate;
@@ -1010,7 +1013,7 @@ methods
 			NLx = Gdist_x;
 		end
 
-		NLy = nim.apply_spkNL(NLx);
+		NLy = nim.apply_spkNL(NLx + nim.spkNL.theta);
 		if ~strcmp(nim.spkNL.type,'lin')
 			NLy = NLy/nim.stim_params(1).dt; % convert to correct firing rate units
 		end
