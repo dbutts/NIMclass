@@ -873,7 +873,7 @@ methods
 	end
 
 	function [LLs,LLnulls,pred_rates] = eval_model_reps( nim, RobsR, Xstims, varargin )
-	% Usage: [LLs,LLnulls] = nim.eval_model_reps( Robs, Xstims, <eval_inds>, <varargin> )
+	% Usage: [LLs,LLnulls,pred_rates] = nim.eval_model_reps( Robs, Xstims, <eval_inds>, <varargin> )
 	% Evaluates the model on the supplied data. In this case RobsR would be a NT x Nreps matrix
    
 		Nreps = size(RobsR,2);
